@@ -1,0 +1,5 @@
+[Anjuta Plugin]
+Location=anjuta_gvim:VimPlugin
+Icon=anjuta_gvim.png
+_Name=Anjuta Foobar Sample Plugin
+_Description=A sample demonstration plugin for Anjuta
