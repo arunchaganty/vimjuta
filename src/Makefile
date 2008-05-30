@@ -59,7 +59,8 @@ pluginLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(plugin_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libanjuta_gvim_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am_libanjuta_gvim_la_OBJECTS = plugin.lo vim-editor.lo
+am_libanjuta_gvim_la_OBJECTS = plugin.lo vim-editor.lo vim-ifile.lo \
+	vim-idocument.lo vim-ieditor.lo
 libanjuta_gvim_la_OBJECTS = $(am_libanjuta_gvim_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -263,7 +264,10 @@ anjuta_gvim_pixmaps_DATA = anjuta_gvim.png
 plugin_in_files = anjuta_gvim.plugin.in
 anjuta_gvim_plugindir = $(anjuta_plugin_dir)
 anjuta_gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin) \
-	vim-editor.c vim-editor.h	
+	vim-editor.c vim-editor.h	\
+	vim-idocument.c \
+	vim-ieditor.c \
+	vim-ifile.c 
 
 
 # NOTE :
@@ -295,7 +299,10 @@ plugin_LTLIBRARIES = libanjuta_gvim.la
 
 # Plugin sources
 libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
-	vim-editor.h  vim-editor.c
+	vim-editor.h  vim-editor.c \
+	vim-ifile.c \
+	vim-idocument.c \
+	vim-ieditor.c 
 
 
 # Plugin dependencies
@@ -380,6 +387,9 @@ distclean-compile:
 
 include ./$(DEPDIR)/plugin.Plo
 include ./$(DEPDIR)/vim-editor.Plo
+include ./$(DEPDIR)/vim-idocument.Plo
+include ./$(DEPDIR)/vim-ieditor.Plo
+include ./$(DEPDIR)/vim-ifile.Plo
 
 .c.o:
 	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
