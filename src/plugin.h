@@ -22,6 +22,14 @@
 
 #include <libanjuta/anjuta-plugin.h>
 
+extern GType anjuta_gvim_plugin_get_type ();
+#define ANJUTA_TYPE_PLUGIN_GVIM         (anjuta_gvim_plugin_get_type ())
+#define ANJUTA_PLUGIN_GVIM(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), ANJUTA_TYPE_PLUGIN_GVIM, VimPlugin))
+#define ANJUTA_PLUGIN_GVIM_CLASS(k)     (G_TYPE_CHECK_CLASS_CAST ((k), ANJUTA_TYPE_PLUGIN_GVIM, VimPluginClass))
+#define ANJUTA_IS_PLUGIN_GVIM(o)        (G_TYPE_CHECK_INSTANCE_TYPE ((o), ANJUTA_TYPE_PLUGIN_GVIM))
+#define ANJUTA_IS_PLUGIN_GVIM_CLASS(k)  (G_TYPE_CHECK_CLASS_TYPE ((k), ANJUTA_TYPE_PLUGIN_GVIM))
+#define ANJUTA_PLUGIN_GVIM_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), ANJUTA_TYPE_PLUGIN_GVIM, VimPluginClass))
+
 typedef struct _VimPlugin VimPlugin;
 typedef struct _VimPluginClass VimPluginClass;
 

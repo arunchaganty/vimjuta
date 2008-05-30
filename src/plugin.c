@@ -22,73 +22,27 @@
 #include <libanjuta/anjuta-shell.h>
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
+#include <libanjuta/interfaces/ianjuta-editor-factory.h>
+#include <libanjuta/interfaces/ianjuta-editor.h>
 
+#include "vim-editor.h"
 #include "plugin.h"
 
-
 #define UI_FILE ANJUTA_DATA_DIR"/ui/anjuta_gvim.ui"
-
-
-#define GLADE_FILE ANJUTA_DATA_DIR"/glade/anjuta_gvim.glade"
-
 
 static gpointer parent_class;
 
 static gboolean
 anjuta_gvim_activate (AnjutaPlugin *plugin)
 {
-	GtkWidget *wid = NULL;
-	GtkWidget *sock = NULL;
-	GladeXML *gxml = NULL;
-	gchar *cmd = NULL;
-	GError *err = NULL;
-
-	VimPlugin *anjuta_gvim;
-	
 	DEBUG_PRINT ("VimPlugin: Activating VimPlugin plugin ...");
-	anjuta_gvim = (VimPlugin*) plugin;
-	/* Add plugin widgets to Shell */
-	gxml = glade_xml_new (GLADE_FILE, "top_widget", NULL);
-	wid = glade_xml_get_widget (gxml, "top_widget");
-	sock = glade_xml_get_widget (gxml, "vim_socket");
-	/* Test X11 socket */
-	g_assert (sock != NULL && wid != NULL);
-	g_print ("%d %d", sock, wid);
-	anjuta_gvim->widget = wid;
-	anjuta_shell_add_widget (plugin->shell, wid,
-							 "VimPluginWidget", _("VimPlugin widget"), NULL,
-							 ANJUTA_SHELL_PLACEMENT_CENTER, NULL);
-
-	anjuta_gvim->socket_id = gtk_socket_get_id ((GtkSocket *) sock);
-	g_print ("%d",anjuta_gvim->socket_id);
-	//g_assert (anjuta_gvim->socket_id != 0);
-
-	cmd = g_malloc (32 * sizeof(gchar));
-	g_sprintf (cmd, "gvim --socketid %d", anjuta_gvim->socket_id);
-	g_print (cmd);
-
-	g_spawn_command_line_async (cmd, &err);
-	if (err) {
-		DEBUG_PRINT ("VimPlugin: Error: %s", err);
-		return FALSE;
-	}
-
-g_object_unref (gxml);
-
 	return TRUE;
 }
 
 static gboolean
 anjuta_gvim_deactivate (AnjutaPlugin *plugin)
 {
-
-	AnjutaUI *ui;
-
 	DEBUG_PRINT ("VimPlugin: Dectivating VimPlugin plugin ...");
-
-	anjuta_shell_remove_widget (plugin->shell, ((VimPlugin*)plugin)->widget,
-								NULL);
-
 	return TRUE;
 }
 
@@ -129,5 +83,31 @@ anjuta_gvim_class_init (GObjectClass *klass)
 	klass->dispose = anjuta_gvim_dispose;
 }
 
-ANJUTA_PLUGIN_BOILERPLATE (VimPlugin, anjuta_gvim);
+static IAnjutaEditor*
+ieditor_factory_new_editor (IAnjutaEditorFactory* factory,
+								const gchar* uri,
+								const gchar* filename,
+								GError** error)
+{
+	AnjutaPlugin* plugin = ANJUTA_PLUGIN (factory);
+	VimEditor* vim = NULL;
+	gchar *cmd = NULL;
+	GError *err = NULL;
+	vim = vim_editor_new (plugin, filename, uri);
+
+	return IANJUTA_EDITOR (vim);
+}
+
+static void
+ieditor_factory_iface_init (IAnjutaEditorFactoryIface *iface)
+{
+	iface->new_editor = ieditor_factory_new_editor;
+}
+
+
+ANJUTA_PLUGIN_BEGIN (VimPlugin, anjuta_gvim);
+ANJUTA_TYPE_ADD_INTERFACE(ieditor_factory, IANJUTA_TYPE_EDITOR_FACTORY);
+ANJUTA_PLUGIN_END;
+
 ANJUTA_SIMPLE_PLUGIN (VimPlugin, anjuta_gvim);
+

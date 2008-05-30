@@ -18,7 +18,8 @@ plugin_in_files = anjuta_gvim.plugin.in
 %.plugin: %.plugin.in $(INTLTOOL_MERGE) $(wildcard $(top_srcdir)/po/*po) ; $(INTLTOOL_MERGE) $(top_srcdir)/po $< $@ -d -u -c $(top_builddir)/po/.intltool-merge-cache
 
 anjuta_gvim_plugindir = $(anjuta_plugin_dir)
-anjuta_gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
+anjuta_gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin) \
+	vim-editor.c vim-editor.h	
 
 # NOTE :
 # The naming convention is very intentional
@@ -47,7 +48,8 @@ plugindir = $(anjuta_plugin_dir)
 plugin_LTLIBRARIES = libanjuta_gvim.la
 
 # Plugin sources
-libanjuta_gvim_la_SOURCES = plugin.c plugin.h
+libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
+	vim-editor.h  vim-editor.c
 
 # Plugin dependencies
 libanjuta_gvim_la_LIBADD = \

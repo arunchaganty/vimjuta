@@ -36,12 +36,12 @@ libdir = ${exec_prefix}/lib
 DATADIRNAME = share
 itlocaledir = $(prefix)/$(DATADIRNAME)/locale
 subdir = po
-install_sh = /home/teju/Projects/anjuta-gvim/install-sh
-# Automake >= 1.8 provides mkdir -p --.
+install_sh = $(SHELL) /home/teju/Projects/anjuta-gvim/install-sh
+# Automake >= 1.8 provides /bin/mkdir -p.
 # Until it can be supposed, use the safe fallback:
 mkdir_p = $(install_sh) -d
 
-INSTALL = /usr/bin/install -c
+INSTALL = /bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 
 GMSGFMT = /usr/bin/msgfmt
