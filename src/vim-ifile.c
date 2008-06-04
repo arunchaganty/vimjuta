@@ -27,7 +27,8 @@
 
 static gchar* 
 ifile_get_uri (IAnjutaFile *obj, GError **err) {
-	return NULL;
+	VimEditor *vim = (VimEditor*) obj;
+	return vim->filename;
 }
 
 static void

@@ -40,19 +40,20 @@ typedef struct _VimEditor VimEditor;
 
 struct _VimEditorClass
 {
-	GtkScrolledWindowClass parent_class;
+	GtkFrameClass parent_class;
 };
 
 struct _VimEditor
 {
-	GtkScrolledWindow parent_instance;
+	GtkFrame parent;
 	/* private */
 	GtkSocket *socket;
 	guint socket_id;
+
 	// TODO: Make a list
 	gchar* filename;
 	gchar* buf_id;
-	
+
 };
 
 GType vim_editor_get_type (void);
