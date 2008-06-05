@@ -36,7 +36,7 @@ typedef struct _VimPluginClass VimPluginClass;
 struct _VimPlugin{
 	AnjutaPlugin parent;
 	GtkWidget *widget;
-	guint socket_id;
+
 
 };
 

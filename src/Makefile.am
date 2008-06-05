@@ -18,12 +18,7 @@ plugin_in_files = anjuta_gvim.plugin.in
 %.plugin: %.plugin.in $(INTLTOOL_MERGE) $(wildcard $(top_srcdir)/po/*po) ; $(INTLTOOL_MERGE) $(top_srcdir)/po $< $@ -d -u -c $(top_builddir)/po/.intltool-merge-cache
 
 anjuta_gvim_plugindir = $(anjuta_plugin_dir)
-anjuta_gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin) \
-	vim-editor.c vim-editor.h	\
-	vim-idocument.c \
-	vim-ieditor.c \
-	vim-ifile.c 
-
+anjuta_gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
 # NOTE :
 # The naming convention is very intentional
@@ -56,7 +51,8 @@ libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
 	vim-editor.h  vim-editor.c \
 	vim-ifile.c \
 	vim-idocument.c \
-	vim-ieditor.c 
+	vim-ieditor.c  vim-dbus.c \
+	vim-dbus.h 
 
 
 # Plugin dependencies
@@ -68,4 +64,5 @@ EXTRA_DIST = \
 	$(anjuta_gvim_plugin_DATA) \
 	$(anjuta_gvim_ui_DATA) \
 	$(anjuta_gvim_glade_DATA) \
-	$(anjuta_gvim_pixmaps_DATA)
+	$(anjuta_gvim_pixmaps_DATA) \
+	vim-dbus.py

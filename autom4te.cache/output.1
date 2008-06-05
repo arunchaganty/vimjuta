@@ -14838,12 +14838,12 @@ if test -n "$LIBANJUTA_CFLAGS"; then
     pkg_cv_LIBANJUTA_CFLAGS="$LIBANJUTA_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libanjuta-1.0\"") >&5
-  ($PKG_CONFIG --exists --print-errors "libanjuta-1.0") 2>&5
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libanjuta-1.0 dbus-glib-1 vte\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libanjuta-1.0 dbus-glib-1 vte") 2>&5
   ac_status=$?
   $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_LIBANJUTA_CFLAGS=`$PKG_CONFIG --cflags "libanjuta-1.0" 2>/dev/null`
+  pkg_cv_LIBANJUTA_CFLAGS=`$PKG_CONFIG --cflags "libanjuta-1.0 dbus-glib-1 vte" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -14854,12 +14854,12 @@ if test -n "$LIBANJUTA_LIBS"; then
     pkg_cv_LIBANJUTA_LIBS="$LIBANJUTA_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libanjuta-1.0\"") >&5
-  ($PKG_CONFIG --exists --print-errors "libanjuta-1.0") 2>&5
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libanjuta-1.0 dbus-glib-1 vte\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libanjuta-1.0 dbus-glib-1 vte") 2>&5
   ac_status=$?
   $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_LIBANJUTA_LIBS=`$PKG_CONFIG --libs "libanjuta-1.0" 2>/dev/null`
+  pkg_cv_LIBANJUTA_LIBS=`$PKG_CONFIG --libs "libanjuta-1.0 dbus-glib-1 vte" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -14877,14 +14877,14 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        LIBANJUTA_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libanjuta-1.0" 2>&1`
+	        LIBANJUTA_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libanjuta-1.0 dbus-glib-1 vte" 2>&1`
         else 
-	        LIBANJUTA_PKG_ERRORS=`$PKG_CONFIG --print-errors "libanjuta-1.0" 2>&1`
+	        LIBANJUTA_PKG_ERRORS=`$PKG_CONFIG --print-errors "libanjuta-1.0 dbus-glib-1 vte" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$LIBANJUTA_PKG_ERRORS" >&5
 
-	{ { $as_echo "$as_me:$LINENO: error: Package requirements (libanjuta-1.0) were not met:
+	{ { $as_echo "$as_me:$LINENO: error: Package requirements (libanjuta-1.0 dbus-glib-1 vte) were not met:
 
 $LIBANJUTA_PKG_ERRORS
 
@@ -14895,7 +14895,7 @@ Alternatively, you may set the environment variables LIBANJUTA_CFLAGS
 and LIBANJUTA_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 " >&5
-$as_echo "$as_me: error: Package requirements (libanjuta-1.0) were not met:
+$as_echo "$as_me: error: Package requirements (libanjuta-1.0 dbus-glib-1 vte) were not met:
 
 $LIBANJUTA_PKG_ERRORS
 

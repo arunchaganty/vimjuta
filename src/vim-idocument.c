@@ -25,76 +25,77 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include "vim-editor.h"
 
-static void idocument_update_ui (IAnjutaDocument *obj)
+static void idocument_update_ui (IAnjutaDocument *doc)
 {
 
 }
 
-static void idocument_begin_undo_action (IAnjutaDocument *obj, GError **err)
+static void idocument_begin_undo_action (IAnjutaDocument *doc, GError **err)
 {
 
 }
 
 static gboolean 
-idocument_can_redo (IAnjutaDocument *obj, GError **err)
+idocument_can_redo (IAnjutaDocument *doc, GError **err)
 {
 	return TRUE;
 }
 
 static gboolean 
-idocument_can_undo (IAnjutaDocument *obj, GError **err)
+idocument_can_undo (IAnjutaDocument *doc, GError **err)
 {
 	return TRUE;
 }
 
 static void 
-idocument_clear (IAnjutaDocument *obj, GError **err)
+idocument_clear (IAnjutaDocument *doc, GError **err)
 {
 
 }
 
 static void 
-idocument_copy (IAnjutaDocument *obj, GError **err)
+idocument_copy (IAnjutaDocument *doc, GError **err)
 {
 
 }
 
 static void 
-idocument_cut (IAnjutaDocument *obj, GError **err)
+idocument_cut (IAnjutaDocument *doc, GError **err)
 {
 
 }
 
 static void 
-idocument_end_undo_action (IAnjutaDocument *obj, GError **err)
+idocument_end_undo_action (IAnjutaDocument *doc, GError **err)
 {
 }
 
 static const gchar* 
-idocument_get_filename (IAnjutaDocument *obj, GError **err)
+idocument_get_filename (IAnjutaDocument *doc, GError **err)
 {
-	return NULL;
+	VimEditor* vim = (VimEditor*) doc;
+	return vim->filename;
 }
 
 static void 
-idocument_grab_focus (IAnjutaDocument *obj, GError **err)
-{
-
-}
-
-static void 
-idocument_paste (IAnjutaDocument *obj, GError **err)
-{
-}
-
-static void 
-idocument_redo (IAnjutaDocument *obj, GError **err)
+idocument_grab_focus (IAnjutaDocument *doc, GError **err)
 {
 
 }
 
 static void 
-idocument_undo (IAnjutaDocument *obj, GError **err)
+idocument_paste (IAnjutaDocument *doc, GError **err)
+{
+}
+
+static void 
+idocument_redo (IAnjutaDocument *doc, GError **err)
+{
+
+}
+
+static void 
+idocument_undo (IAnjutaDocument *doc, GError **err)
 {
 
 }
@@ -117,6 +118,5 @@ idocument_iface_init (IAnjutaDocumentIface *iface)
 	iface->paste = idocument_paste;
 	iface->redo = idocument_redo;
 	iface->undo = idocument_undo;
-
 }
 

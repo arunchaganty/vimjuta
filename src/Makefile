@@ -60,7 +60,7 @@ LTLIBRARIES = $(plugin_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libanjuta_gvim_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libanjuta_gvim_la_OBJECTS = plugin.lo vim-editor.lo vim-ifile.lo \
-	vim-idocument.lo vim-ieditor.lo
+	vim-idocument.lo vim-ieditor.lo vim-dbus.lo
 libanjuta_gvim_la_OBJECTS = $(am_libanjuta_gvim_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -148,8 +148,8 @@ INTLTOOL_XML_NOMERGE_RULE = %.xml:       %.xml.in       $(INTLTOOL_MERGE) ; LC_A
 INTLTOOL_XML_RULE = %.xml:       %.xml.in       $(INTLTOOL_MERGE) $(wildcard $(top_srcdir)/po/*.po) ; LC_ALL=C $(INTLTOOL_MERGE) -x -u -c $(top_builddir)/po/.intltool-merge-cache $(top_srcdir)/po $< $@
 LD = /usr/bin/ld
 LDFLAGS = 
-LIBANJUTA_CFLAGS = -DORBIT2=1 -pthread -I/usr/include/libanjuta-1.0 -I/usr/include/libgnomeui-2.0 -I/usr/include/libglade-2.0 -I/usr/include/libart-2.0 -I/usr/include/gconf/2 -I/usr/include/gnome-keyring-1 -I/usr/include/libgnome-2.0 -I/usr/include/libbonoboui-2.0 -I/usr/include/libgnomecanvas-2.0 -I/usr/include/gtk-2.0 -I/usr/include/gnome-vfs-2.0 -I/usr/lib/gnome-vfs-2.0/include -I/usr/include/orbit-2.0 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/libbonobo-2.0 -I/usr/include/bonobo-activation-2.0 -I/usr/include/libxml2 -I/usr/include/pango-1.0 -I/usr/include/gail-1.0 -I/usr/include/freetype2 -I/usr/include/atk-1.0 -I/usr/lib/gtk-2.0/include -I/usr/include/cairo -I/usr/include/libpng12 -I/usr/include/pixman-1  
-LIBANJUTA_LIBS = -pthread -lanjuta -lgnomeui-2 -lSM -lICE -lglade-2.0 -lbonoboui-2 -lgnomevfs-2 -lgnomecanvas-2 -lgnome-2 -lpopt -lbonobo-2 -lbonobo-activation -lORBit-2 -lart_lgpl_2 -lgconf-2 -lgthread-2.0 -lrt -lgtk-x11-2.0 -lxml2 -lgdk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpango-1.0 -lcairo -lgobject-2.0 -lgmodule-2.0 -ldl -lglib-2.0  
+LIBANJUTA_CFLAGS = -DORBIT2=1 -pthread -I/usr/include/libanjuta-1.0 -I/usr/include/libgnomeui-2.0 -I/usr/include/libglade-2.0 -I/usr/include/libart-2.0 -I/usr/include/gconf/2 -I/usr/include/gnome-keyring-1 -I/usr/include/libgnome-2.0 -I/usr/include/libbonoboui-2.0 -I/usr/include/libgnomecanvas-2.0 -I/usr/include/gtk-2.0 -I/usr/include/gnome-vfs-2.0 -I/usr/lib/gnome-vfs-2.0/include -I/usr/include/orbit-2.0 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/libbonobo-2.0 -I/usr/include/bonobo-activation-2.0 -I/usr/include/libxml2 -I/usr/include/pango-1.0 -I/usr/include/gail-1.0 -I/usr/include/freetype2 -I/usr/include/atk-1.0 -I/usr/lib/gtk-2.0/include -I/usr/include/cairo -I/usr/include/libpng12 -I/usr/include/pixman-1 -I/usr/include/dbus-1.0 -I/usr/lib/dbus-1.0/include  
+LIBANJUTA_LIBS = -pthread -lanjuta -lgnomeui-2 -lSM -lICE -lglade-2.0 -lbonoboui-2 -lgnomevfs-2 -lgnomecanvas-2 -lgnome-2 -lpopt -lbonobo-2 -lbonobo-activation -lORBit-2 -lart_lgpl_2 -lgconf-2 -lgthread-2.0 -lrt -lxml2 -ldbus-glib-1 -ldbus-1 -lvte -lgtk-x11-2.0 -lpangoxft-1.0 -lpangox-1.0 -lgdk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lcairo -lpangoft2-1.0 -lXft -lXrender -lfontconfig -lfreetype -lz -lX11 -lpango-1.0 -lgobject-2.0 -lgmodule-2.0 -ldl -lglib-2.0  
 LIBOBJS = 
 LIBS = 
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
@@ -263,12 +263,7 @@ anjuta_gvim_pixmaps_DATA = anjuta_gvim.png
 # Plugin description file
 plugin_in_files = anjuta_gvim.plugin.in
 anjuta_gvim_plugindir = $(anjuta_plugin_dir)
-anjuta_gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin) \
-	vim-editor.c vim-editor.h	\
-	vim-idocument.c \
-	vim-ieditor.c \
-	vim-ifile.c 
-
+anjuta_gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
 # NOTE :
 # The naming convention is very intentional
@@ -302,7 +297,8 @@ libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
 	vim-editor.h  vim-editor.c \
 	vim-ifile.c \
 	vim-idocument.c \
-	vim-ieditor.c 
+	vim-ieditor.c  vim-dbus.c \
+	vim-dbus.h 
 
 
 # Plugin dependencies
@@ -314,7 +310,8 @@ EXTRA_DIST = \
 	$(anjuta_gvim_plugin_DATA) \
 	$(anjuta_gvim_ui_DATA) \
 	$(anjuta_gvim_glade_DATA) \
-	$(anjuta_gvim_pixmaps_DATA)
+	$(anjuta_gvim_pixmaps_DATA) \
+	vim-dbus.py
 
 all: all-am
 
@@ -386,6 +383,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/plugin.Plo
+include ./$(DEPDIR)/vim-dbus.Plo
 include ./$(DEPDIR)/vim-editor.Plo
 include ./$(DEPDIR)/vim-idocument.Plo
 include ./$(DEPDIR)/vim-ieditor.Plo

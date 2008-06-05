@@ -27,8 +27,12 @@
 #include <libanjuta/interfaces/ianjuta-editor.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include "vim-editor.h"
+#include "vim-dbus.h"
+#include <string.h>
 
 #define GLADE_FILE ANJUTA_DATA_DIR"/glade/anjuta_gvim.glade"
+#define VIM_DBUS_FILE "/home/teju/Projects/anjuta-gvim/src/vim-dbus.py"
+#define GVIMRC_FILE "/home/teju/Projects/anjuta-gvim/misc/anjuta.gvimrc"
 
 static GObjectClass* parent_class = NULL;
 
@@ -36,12 +40,24 @@ extern void ieditor_iface_init (IAnjutaEditorIface *iface);
 extern void idocument_iface_init (IAnjutaDocumentIface *iface);
 extern ifile_iface_init (IAnjutaFileIface *iface);
 
+gchar*
+uri_to_file (const gchar* uri) {
+	gchar *tmp;
+
+	tmp = g_uri_parse_scheme (uri);
+	if (strcmp (tmp, "file") == 0)
+		tmp = *g_strsplit (uri, "file:///", 1);
+	else
+		tmp = g_strdup (uri);
+	return tmp;
+}
+
 /* 
  * Once the window is ready, call this function to embed vim
  */
 static void 
 vim_editor_connect_plug (VimEditor *vim, GParamSpec *param) {
-	gchar cmd[32];
+	gchar *cmd;
 	GError *err = NULL;
 	GtkContainer *parent;
 
@@ -52,18 +68,29 @@ vim_editor_connect_plug (VimEditor *vim, GParamSpec *param) {
 	if (parent != NULL) {
 		vim->socket_id = gtk_socket_get_id ((GtkSocket *) vim->socket);
 		g_assert (vim->socket_id != 0);
-		g_sprintf (cmd, "gvim --socketid %d \n",
-				vim->socket_id);
+		
+		if (vim->filename)
+		{
+			cmd = g_strdup_printf ("gvim -U %s --socketid %d %s \n",
+					GVIMRC_FILE,vim->socket_id, vim->filename);
+		}
+		else 
+		{
+			cmd = g_strdup_printf ("gvim --socketid %d \n",
+					GVIMRC_FILE,vim->socket_id);
+		}
 		g_print (cmd);
-
+		
+		// Run vim
 		g_spawn_command_line_async (cmd, &err);
-		if (err) {
+		if (err)
+		{
 			DEBUG_PRINT ("VimPlugin: Error: %s", err);
 			g_object_unref (err);
 			err = NULL;
 		}
-
 	}
+
 }
 
 VimEditor*
@@ -71,17 +98,16 @@ vim_editor_new (AnjutaPlugin *plugin, const gchar* uri, const gchar* filename)
 {
 	VimEditor *vim;
 	GtkSocket *sock = NULL;
-	GladeXML *gxml = NULL;
-	gchar *cmd = NULL;
 	GError *err = NULL;
 	
 	DEBUG_PRINT ("VimPlugin: Creating new editor ...");
 
 	vim = VIM_EDITOR (g_object_new(VIM_TYPE_EDITOR, NULL));
-	vim->filename = g_strdup (filename);
+	if (uri && strcmp (uri,"") != 0) vim->filename = uri_to_file (uri);
+	else if (filename && strcmp (filename,"") != 0) vim->filename = uri_to_file (filename);
+	else vim->filename = NULL;
 	
-	/* Add plugin widgets to Shell */
-	/* gxml = glade_xml_new (GLADE_FILE, "top_widget", NULL);*/
+	/* Socket Impl. */
 	vim->socket = (GtkSocket*) gtk_socket_new ();
 	g_object_set (vim->socket,
 			"visible", TRUE,
@@ -93,6 +119,15 @@ vim_editor_new (AnjutaPlugin *plugin, const gchar* uri, const gchar* filename)
 						"notify::parent",
 						G_CALLBACK(vim_editor_connect_plug),
 						NULL);
+	
+	// Now hook in DBus
+	vim_dbus_init(vim, &err);
+	if (err) 
+	{
+		DEBUG_PRINT ("VimPlugin: Error: %s", err);
+		g_object_unref (err);
+		err = NULL;
+	}
 
 	return vim;
 }
@@ -106,6 +141,11 @@ vim_editor_instance_init (VimEditor *object)
 	// TODO: Make a list
 	object->filename = NULL;
 	object->buf_id = 0;
+	
+	object->conn = NULL;
+	object->proxy = NULL;
+	object->dbus_proxy = NULL;
+
 }
 
 static void
@@ -130,3 +170,4 @@ ANJUTA_TYPE_ADD_INTERFACE(ieditor, IANJUTA_TYPE_EDITOR);
 ANJUTA_TYPE_ADD_INTERFACE(idocument, IANJUTA_TYPE_DOCUMENT);
 ANJUTA_TYPE_ADD_INTERFACE(ifile, IANJUTA_TYPE_FILE);
 ANJUTA_TYPE_END;
+

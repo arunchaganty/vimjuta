@@ -66,8 +66,6 @@ anjuta_gvim_instance_init (GObject *obj)
 	VimPlugin *plugin = (VimPlugin*)obj;
 
 	plugin->widget = NULL;
-	plugin->socket_id = 0;
-
 }
 
 static void
@@ -91,7 +89,6 @@ ieditor_factory_new_editor (IAnjutaEditorFactory* factory,
 {
 	AnjutaPlugin* plugin = ANJUTA_PLUGIN (factory);
 	VimEditor* vim = NULL;
-	gchar *cmd = NULL;
 	GError *err = NULL;
 	vim = vim_editor_new (plugin, filename, uri);
 

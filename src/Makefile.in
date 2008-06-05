@@ -60,7 +60,7 @@ LTLIBRARIES = $(plugin_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libanjuta_gvim_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libanjuta_gvim_la_OBJECTS = plugin.lo vim-editor.lo vim-ifile.lo \
-	vim-idocument.lo vim-ieditor.lo
+	vim-idocument.lo vim-ieditor.lo vim-dbus.lo
 libanjuta_gvim_la_OBJECTS = $(am_libanjuta_gvim_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -263,12 +263,7 @@ anjuta_gvim_pixmaps_DATA = anjuta_gvim.png
 # Plugin description file
 plugin_in_files = anjuta_gvim.plugin.in
 anjuta_gvim_plugindir = $(anjuta_plugin_dir)
-anjuta_gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin) \
-	vim-editor.c vim-editor.h	\
-	vim-idocument.c \
-	vim-ieditor.c \
-	vim-ifile.c 
-
+anjuta_gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
 # NOTE :
 # The naming convention is very intentional
@@ -302,7 +297,8 @@ libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
 	vim-editor.h  vim-editor.c \
 	vim-ifile.c \
 	vim-idocument.c \
-	vim-ieditor.c 
+	vim-ieditor.c  vim-dbus.c \
+	vim-dbus.h 
 
 
 # Plugin dependencies
@@ -314,7 +310,8 @@ EXTRA_DIST = \
 	$(anjuta_gvim_plugin_DATA) \
 	$(anjuta_gvim_ui_DATA) \
 	$(anjuta_gvim_glade_DATA) \
-	$(anjuta_gvim_pixmaps_DATA)
+	$(anjuta_gvim_pixmaps_DATA) \
+	vim-dbus.py
 
 all: all-am
 
@@ -386,6 +383,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plugin.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-dbus.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-editor.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-idocument.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-ieditor.Plo@am__quote@

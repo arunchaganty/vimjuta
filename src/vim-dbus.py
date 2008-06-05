@@ -6,8 +6,9 @@ import vim
 import dbus
 import dbus.service
 
-DBUS_NAME= 'org.vim'
-DBUS_PATH = '/org/editors/vim'
+DBUS_NAME_ANJUTA = 'org.anjuta'
+DBUS_PATH_VIM = '/org/anjuta/vim/daemon'
+DBUS_IFACE_EDITOR_REMOTE = 'org.editors.remote'
 
 # A class that acts a daemon for Vim
 class DBusDaemon(dbus.service.Object):
@@ -16,17 +17,20 @@ class DBusDaemon(dbus.service.Object):
                 dbus.service.BusName(bus_name,bus=bus),
                 object_path)
 
-    @dbus.service.method(dbus_interface=DBUS_NAME,
+    @dbus.service.method(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             in_signature='s', out_signature='s')
     def ExecuteCmd(self, cmd):
         result = ''
         try:
             result = vim.command(cmd)
-            return result
+            if result:
+                return result
+            else:
+                return "None"
         except vim.error:
             return 'ERROR'
 
-    @dbus.service.method(dbus_interface=DBUS_NAME,
+    @dbus.service.method(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             in_signature='s', out_signature='s')
     def QueryExpr(self, expr):
         result = ''
@@ -36,10 +40,9 @@ class DBusDaemon(dbus.service.Object):
         except vim.error:
             return 'ERROR'
     
-    @dbus.service.method(dbus_interface=DBUS_NAME,
-            in_signature='uu', out_signature='s',
-            sender_keyword='sender')
-    def GetBufContents (start,end):
+    @dbus.service.method(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            in_signature='uu', out_signature='s')
+    def GetBufContents (self, start, end):
         result = ''
         try:
             result = vim.current.buffer[start:end]
@@ -47,20 +50,28 @@ class DBusDaemon(dbus.service.Object):
         except vim.error:
             return 'ERROR'
 
+    @dbus.service.method(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            in_signature='', out_signature='s')
+    def GetBufContentsFull (self):
+        result = ''
+        try:
+            result = vim.current.buffer[:]
+            return result
+        except vim.error:
+            return 'ERROR'
 
-
-    @dbus.service.method(dbus_interface=DBUS_NAME,
+    @dbus.service.method(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             in_signature='', out_signature='s',
             sender_keyword='sender')
     def SayHello(self,sender):
         return "Hello! %s" % sender
 
-    @dbus.service.signal(dbus_interface=DBUS_NAME,
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             signature='us')
     def BufChanged(self, bufno, uri):
         pass
     
-    @dbus.service.signal(dbus_interface=DBUS_NAME,
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             signature='s')
     def BufSaved(self, uri):
         pass
@@ -75,13 +86,12 @@ if __name__ == "__main__":
     def run (*args, **kwargs):
         loop.run()
 
-    DBusGMainLoop (set_as_default=True)
+    DBusGMainLoop(set_as_default=True)
     bus = dbus.SessionBus()
+#    loop = MainLoop()
 
-    loop = MainLoop()
+    vim_anjuta = DBusDaemon (bus, DBUS_NAME_ANJUTA,'%s/daemon'%DBUS_PATH_VIM)
 
-    vim_anjuta = DBusDaemon (bus, DBUS_NAME,'%s/daemon'%DBUS_PATH)
-
-    threads_init()
-    thread.start_new_thread(run, ())
+#    threads_init()
+#    thread.start_new_thread(run, ())
 

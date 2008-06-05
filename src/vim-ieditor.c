@@ -27,36 +27,116 @@
 
 
 
-#include "vim-editor.h"
 #include <libanjuta/interfaces/ianjuta-editor.h>
+#include "vim-editor.h"
+#include "vim-dbus.h"
 
 
 
 static gint
 ieditor_get_tabsize (IAnjutaEditor *editor, GError **e)
 {
-	return 4;
+	VimEditor *vim = (VimEditor*) editor;
+	gchar* reply = NULL;
+	gint result;
+
+	g_assert (e == NULL);
+	reply = vim_dbus_query (vim, "&tabstop", e);
+	
+	// TODO: Error Handling...
+
+	if (reply)
+	{
+		result = (gint)g_ascii_strtod (reply, NULL);
+		g_free (reply);
+		return result;	
+	}
+	else
+	{
+		return 0;
+	}
+
 }
 
 static void
 ieditor_set_tabsize (IAnjutaEditor *editor, gint tabsize, GError **e)
 {
+	VimEditor *vim = (VimEditor*) editor;
+	gchar* query = NULL;
+
+	g_assert (e == NULL);
+	// Create query string
+	query = g_strnfill (20, '\0');
+	g_strdup_printf (":set tabstop=%s", tabsize);
+
+	vim_dbus_exec_without_reply (vim, query, e);
+	
+	// TODO: Error Handling...
+
+	g_free (query);
 }
 
 static gboolean
 ieditor_get_use_spaces (IAnjutaEditor *editor, GError **e)
 {
+	VimEditor *vim = (VimEditor*) editor;
+	gchar* reply = NULL;
+	gint result;
+
+	g_assert (e == NULL);
+	reply = vim_dbus_query (vim, "&expandtab", e);
+	
+	// TODO: Error Handling...
+	if (reply)
+	{
+		result = (gboolean)g_ascii_strtod (reply, NULL);
+		g_free (reply);
+		return result;	
+	}
+
 	return TRUE;
 }
 
 static void
 ieditor_set_use_spaces (IAnjutaEditor *editor, gboolean use_spaces, GError **e)
 {
+	VimEditor *vim = (VimEditor*) editor;
+	gchar* query = NULL;
+
+	g_assert (e == NULL);
+	// Create query string
+	if (use_spaces)
+		g_strdup_printf (":set expandtab");
+	else
+		g_strdup_printf (":set noexpandtab");
+
+
+	vim_dbus_exec_without_reply (vim, query, e);
+	
+	// TODO: Error Handling...
+
+	g_free (query);
 }
 
 static void
 ieditor_set_auto_indent (IAnjutaEditor *editor, gboolean auto_indent, GError **e)
 {
+	VimEditor *vim = (VimEditor*) editor;
+	gchar* query = NULL;
+
+	g_assert (e == NULL);
+	// Create query string
+	if (auto_indent)
+		g_strdup_printf (":set autoindent");
+	else
+		g_strdup_printf (":set noautoindent");
+
+
+	vim_dbus_exec_without_reply (vim, query, e);
+	
+	// TODO: Error Handling...
+
+	g_free (query);
 }
 
 
@@ -64,6 +144,19 @@ ieditor_set_auto_indent (IAnjutaEditor *editor, gboolean auto_indent, GError **e
 static void 
 ieditor_goto_line(IAnjutaEditor *editor, gint line, GError **e)
 {
+	VimEditor *vim = (VimEditor*) editor;
+	gchar* query = NULL;
+
+	g_assert (e == NULL);
+	// Create query string
+	query = g_strdup_printf (":%d ", line);
+
+	vim_dbus_exec_without_reply (vim, query, e);
+	
+	// TODO: Error Handling...
+
+	g_free (query);
+
 }
 
 /* Scroll to position */
@@ -76,16 +169,24 @@ ieditor_goto_position(IAnjutaEditor *editor, IAnjutaIterable* icell,
 /* Return a newly allocated pointer containing the whole text */
 static gchar* 
 ieditor_get_text (IAnjutaEditor* editor, 
-								IAnjutaIterable* start,
-								IAnjutaIterable* end, GError **e)
+				IAnjutaIterable* start,
+				IAnjutaIterable* end, GError **e)
 {
 	return NULL;
 }
 
 static gchar*
-ieditor_get_text_all (IAnjutaEditor* edit, GError **e)
+ieditor_get_text_all (IAnjutaEditor* editor, GError **e)
 {
-	return NULL;
+	VimEditor *vim = (VimEditor*) editor;
+	gchar* reply = NULL;
+
+	g_assert (e == NULL);
+	reply = vim_dbus_get_buf_full (vim, e);
+	
+	// TODO: Error Handling...
+
+	return reply;	
 }
 
 /* Get cursor position */
@@ -105,6 +206,22 @@ ieditor_get_offset (IAnjutaEditor* editor, GError **e)
 static gint
 ieditor_get_lineno(IAnjutaEditor *editor, GError **e)
 {
+	VimEditor *vim = (VimEditor*) editor;
+	gchar* reply = NULL;
+	gint result;
+
+	g_assert (e == NULL);
+	reply = vim_dbus_query (vim, "line ('.')", e);
+	
+	// TODO: Error Handling...
+
+	if (reply)
+	{
+		result = (gint)g_ascii_strtod (reply, NULL);
+		g_free (reply);
+		return result;	
+	}
+
 	return 0;
 }
 
@@ -145,13 +262,35 @@ ieditor_erase(IAnjutaEditor* editor, IAnjutaIterable* istart_cell,
 static void 
 ieditor_erase_all(IAnjutaEditor *editor, GError **e)
 {
+	VimEditor *vim = (VimEditor*) editor;
+
+	g_assert (e == NULL);
+
+	vim_dbus_exec_without_reply (vim, ":\%del", e);
+	
+	// TODO: Error Handling...
+	
 }
 
 /* Return column of cursor */
 static gint 
 ieditor_get_column(IAnjutaEditor *editor, GError **e)
 {
-	return 0;
+	VimEditor *vim = (VimEditor*) editor;
+	gchar* reply = NULL;
+	gint result;
+
+	g_assert (e == NULL);
+	reply = vim_dbus_query (vim, "col ('.')", e);
+	
+	// TODO: Error Handling...
+
+	if (reply)
+	{
+		result = (int)g_ascii_strtod (reply, NULL);
+		g_free (reply);
+		return result;	
+	}
 }
 
 /* Return TRUE if editor is in overwrite mode */
@@ -210,13 +349,29 @@ ieditor_get_end_position (IAnjutaEditor* edit, GError** e)
 }
 
 static void
-ieditor_goto_start (IAnjutaEditor* edit, GError** e)
+ieditor_goto_start (IAnjutaEditor* editor, GError** e)
 {
+	VimEditor *vim = (VimEditor*) editor;
+
+	g_assert (e == NULL);
+
+	vim_dbus_exec_without_reply (vim, ":goto 1", e);
+	
+	// TODO: Error Handling...
+	
 }
 
 static void
-ieditor_goto_end (IAnjutaEditor* edit, GError** e)
+ieditor_goto_end (IAnjutaEditor* editor, GError** e)
 {
+	VimEditor *vim = (VimEditor*) editor;
+
+	g_assert (e == NULL);
+
+	vim_dbus_exec_without_reply (vim, ":%", e);
+	
+	// TODO: Error Handling...
+	
 }
 
 void 
