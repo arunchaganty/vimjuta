@@ -26,6 +26,7 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
+#include <libanjuta/interfaces/ianjuta-file-savable.h>
 #include "vim-editor.h"
 #include "vim-dbus.h"
 #include <string.h>
@@ -39,14 +40,38 @@ static GObjectClass* parent_class = NULL;
 extern void ieditor_iface_init (IAnjutaEditorIface *iface);
 extern void idocument_iface_init (IAnjutaDocumentIface *iface);
 extern ifile_iface_init (IAnjutaFileIface *iface);
+extern isave_iface_init (IAnjutaFileSavableIface *iface);
+
+gchar* str_substr (const gchar* str, const gint start, const gint end)
+{
+	gchar *new_str = NULL;
+	gint i, j = 0;
+
+	g_assert (end > start);
+	new_str = g_new0 (gchar, end - start);
+
+	for (i = 0; i < start; i++)
+		g_return_if_fail (str[i] != '\0');
+
+	for (;i < end; i++ && j++) {
+		if (str[i] == '\0')
+			break;
+		new_str[j] = str[i];
+	}
+
+	return new_str;
+}
 
 gchar*
 uri_to_file (const gchar* uri) {
 	gchar *tmp;
+	gchar **list;
 
 	tmp = g_uri_parse_scheme (uri);
 	if (strcmp (tmp, "file") == 0)
-		tmp = *g_strsplit (uri, "file:///", 1);
+	{
+		tmp = str_substr (uri, 7, strlen (uri)); 
+	}
 	else
 		tmp = g_strdup (uri);
 	return tmp;
@@ -103,9 +128,12 @@ vim_editor_new (AnjutaPlugin *plugin, const gchar* uri, const gchar* filename)
 	DEBUG_PRINT ("VimPlugin: Creating new editor ...");
 
 	vim = VIM_EDITOR (g_object_new(VIM_TYPE_EDITOR, NULL));
+	vim->uri = g_strdup(filename);
 	if (uri && strcmp (uri,"") != 0) vim->filename = uri_to_file (uri);
 	else if (filename && strcmp (filename,"") != 0) vim->filename = uri_to_file (filename);
 	else vim->filename = NULL;
+
+	if (filename) g_print ("%s \n", vim->filename);
 	
 	/* Socket Impl. */
 	vim->socket = (GtkSocket*) gtk_socket_new ();
@@ -151,7 +179,7 @@ vim_editor_instance_init (VimEditor *object)
 static void
 vim_editor_finalize (GObject *object)
 {
-	/* TODO: Add deinitalization code here */
+	/* TODO: Add deinitalization code here */	
 	
 	parent_class->finalize (object);
 }
@@ -169,5 +197,5 @@ ANJUTA_TYPE_BEGIN (VimEditor, vim_editor, GTK_TYPE_FRAME);
 ANJUTA_TYPE_ADD_INTERFACE(ieditor, IANJUTA_TYPE_EDITOR);
 ANJUTA_TYPE_ADD_INTERFACE(idocument, IANJUTA_TYPE_DOCUMENT);
 ANJUTA_TYPE_ADD_INTERFACE(ifile, IANJUTA_TYPE_FILE);
+ANJUTA_TYPE_ADD_INTERFACE(isave, IANJUTA_TYPE_FILE_SAVABLE);
 ANJUTA_TYPE_END;
-

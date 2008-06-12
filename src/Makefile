@@ -60,7 +60,7 @@ LTLIBRARIES = $(plugin_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libanjuta_gvim_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libanjuta_gvim_la_OBJECTS = plugin.lo vim-editor.lo vim-ifile.lo \
-	vim-idocument.lo vim-ieditor.lo vim-dbus.lo
+	vim-idocument.lo vim-ieditor.lo vim-dbus.lo vim-cell.lo
 libanjuta_gvim_la_OBJECTS = $(am_libanjuta_gvim_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -97,7 +97,7 @@ CATALOGS =
 CATOBJEXT = .gmo
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O0
+CFLAGS = -g -O2
 CPP = gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
@@ -156,7 +156,7 @@ LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIPO = 
 LN_S = ln -s
 LTLIBOBJS = 
-MAINT = 
+MAINT = #
 MAKEINFO = ${SHELL} /home/teju/Projects/anjuta-gvim/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
 MKINSTALLDIRS = ./mkinstalldirs
@@ -236,7 +236,7 @@ mandir = ${datarootdir}/man
 mkdir_p = /bin/mkdir -p
 oldincludedir = /usr/include
 pdfdir = ${docdir}
-prefix = /usr/local
+prefix = /usr
 program_transform_name = s,x,x,
 psdir = ${docdir}
 sbindir = ${exec_prefix}/sbin
@@ -298,7 +298,8 @@ libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
 	vim-ifile.c \
 	vim-idocument.c \
 	vim-ieditor.c  vim-dbus.c \
-	vim-dbus.h 
+	vim-dbus.h  vim-cell.h \
+	vim-cell.c
 
 
 # Plugin dependencies
@@ -317,7 +318,7 @@ all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .c .lo .o .obj
-$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
+$(srcdir)/Makefile.in: # $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -342,9 +343,9 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 
-$(top_srcdir)/configure:  $(am__configure_deps)
+$(top_srcdir)/configure: # $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
-$(ACLOCAL_M4):  $(am__aclocal_m4_deps)
+$(ACLOCAL_M4): # $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 install-pluginLTLIBRARIES: $(plugin_LTLIBRARIES)
 	@$(NORMAL_INSTALL)
@@ -383,6 +384,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/plugin.Plo
+include ./$(DEPDIR)/vim-cell.Plo
 include ./$(DEPDIR)/vim-dbus.Plo
 include ./$(DEPDIR)/vim-editor.Plo
 include ./$(DEPDIR)/vim-idocument.Plo

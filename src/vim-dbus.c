@@ -27,6 +27,7 @@
 #include "vim-dbus.h"
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>
+#include <string.h>
 
 static void
 vim_dbus_connect_cb (DBusGProxy *proxy,
@@ -35,7 +36,7 @@ vim_dbus_connect_cb (DBusGProxy *proxy,
 		const gchar* NameAcquired,
 		VimEditor *vim)
 {
-	if (NameAcquired == "org.anjuta")
+	if (strcmp (NameOwner,"org.anjuta") == 0)
 	{
 		// Stop listening
 		dbus_g_proxy_disconnect_signal (proxy,
@@ -62,7 +63,7 @@ vim_dbus_init (VimEditor *vim, GError **error)
 	vim->conn = dbus_g_bus_get (DBUS_BUS_SESSION, &err);
 	if (err)
 	{
-		g_printerr ("Error connecting to DBus: %s\n", err);
+		DEBUG_PRINT ("Error connecting to DBus: %s\n", err);
 		if (error) *error = err; // Propogate error
 		else g_error_free (err);
 		return FALSE;
@@ -109,15 +110,38 @@ vim_dbus_query (VimEditor *vim, gchar* query, GError **error)
 	if (err)
 	{
 		if ( err->domain == DBUS_GERROR && err->code == DBUS_GERROR_REMOTE_EXCEPTION)
-			g_printerr ("Caught a remote exception \n");
+			DEBUG_PRINT ("Caught a remote exception \n");
 		else if (err)
-			g_printerr ("Error calling QueryExpr: %s\n", err->message);
+			DEBUG_PRINT ("Error calling QueryExpr: %s\n", err->message);
 		if (error) *error = err;
 		else g_error_free (err);
 		return NULL;
 	}
 		
 	return reply;
+}
+
+gint
+vim_dbus_int_query (VimEditor *vim, gchar* query, GError **error) 
+{
+	gchar* reply = NULL;
+	gint result;
+
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), 0);
+	g_assert (error == NULL);
+
+	reply = vim_dbus_query (vim, query, error);
+	
+	if (reply)
+	{
+		result = (gint)g_ascii_strtod (reply, NULL);
+		g_free (reply);
+		return result;	
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 gchar*
@@ -138,9 +162,9 @@ vim_dbus_exec (VimEditor* vim, gchar* cmd, GError **error)
 	if (err)
 	{
 		if ( err->domain == DBUS_GERROR && err->code == DBUS_GERROR_REMOTE_EXCEPTION)
-			g_printerr ("Caught a remote exception \n");
+			DEBUG_PRINT ("Caught a remote exception \n");
 		else if (err)
-			g_printerr ("Error calling ExecuteCmd: %s\n", err->message);
+			DEBUG_PRINT ("Error calling ExecuteCmd: %s\n", err->message);
 		if (error) *error = err;
 		else g_error_free (err);
 		return NULL;
@@ -149,10 +173,31 @@ vim_dbus_exec (VimEditor* vim, gchar* cmd, GError **error)
 	return reply;
 }
 
+vim_dbus_int_exec (VimEditor *vim, gchar* query, GError **error) 
+{
+	gchar* reply = NULL;
+	gint result;
+
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), 0);
+	g_assert (error == NULL);
+
+	reply = vim_dbus_exec (vim, query, error);
+	
+	if (reply)
+	{
+		result = (gint)g_ascii_strtod (reply, NULL);
+		g_free (reply);
+		return result;	
+	}
+	else
+	{
+		return 0;
+	}
+}
 void 
 vim_dbus_exec_without_reply (VimEditor* vim, gchar* cmd, GError **error) 
 {
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), NULL);
+	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 	dbus_g_proxy_call_no_reply (vim->proxy,
 			"ExecuteCmd",
 			G_TYPE_STRING, cmd,
@@ -178,9 +223,9 @@ vim_dbus_get_buf (VimEditor *vim, guint start, guint end, GError **error)
 	if (err)
 	{
 		if ( err->domain == DBUS_GERROR && err->code == DBUS_GERROR_REMOTE_EXCEPTION)
-			g_printerr ("Caught a remote exception \n");
+			DEBUG_PRINT ("Caught a remote exception \n");
 		else if (err)
-			g_printerr ("Error calling GetBufContents: %s\n", err->message);
+			DEBUG_PRINT ("Error calling GetBufContents: %s\n", err->message);
 		if (error) *error = err;
 		else g_error_free (err);
 		return NULL;
@@ -205,9 +250,9 @@ vim_dbus_get_buf_full (VimEditor *vim, GError **error)
 	if (err)
 	{
 		if ( err->domain == DBUS_GERROR && err->code == DBUS_GERROR_REMOTE_EXCEPTION)
-			g_printerr ("Caught a remote exception \n");
+			DEBUG_PRINT ("Caught a remote exception \n");
 		else if (err)
-			g_printerr ("Error calling GetBufContentsFull: %s\n", err->message);
+			DEBUG_PRINT ("Error calling GetBufContentsFull: %s\n", err->message);
 		if (error) *error = err;
 		else g_error_free (err);
 		return NULL;

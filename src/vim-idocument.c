@@ -25,14 +25,9 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include "vim-editor.h"
 
-static void idocument_update_ui (IAnjutaDocument *doc)
-{
-
-}
-
 static void idocument_begin_undo_action (IAnjutaDocument *doc, GError **err)
 {
-
+	/* Support for undo blocks is hard */
 }
 
 static gboolean 
@@ -50,62 +45,107 @@ idocument_can_undo (IAnjutaDocument *doc, GError **err)
 static void 
 idocument_clear (IAnjutaDocument *doc, GError **err)
 {
+	VimEditor *vim = (VimEditor*) doc;
+	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+
+	g_assert (err == NULL);
+	// Create query string
+	vim_dbus_exec_without_reply (vim, "<ESC><ESC>", err);
+	
+	// TODO: Error Handling...
 
 }
 
 static void 
 idocument_copy (IAnjutaDocument *doc, GError **err)
 {
+	VimEditor *vim = (VimEditor*) doc;
+	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 
+	g_assert (err == NULL);
+	// Create query string
+	vim_dbus_exec_without_reply (vim, ":yank \"*", err);
+	
+	// TODO: Error Handling...
 }
 
 static void 
 idocument_cut (IAnjutaDocument *doc, GError **err)
 {
+	VimEditor *vim = (VimEditor*) doc;
+	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 
+	g_assert (err == NULL);
+	// Create query string
+	vim_dbus_exec_without_reply (vim, ":yank \"*", err);
+	
+	// TODO: Error Handling...
 }
 
 static void 
 idocument_end_undo_action (IAnjutaDocument *doc, GError **err)
 {
+	/* Support for undo blocks is hard */
 }
 
 static const gchar* 
 idocument_get_filename (IAnjutaDocument *doc, GError **err)
 {
 	VimEditor* vim = (VimEditor*) doc;
-	return vim->filename;
+	return g_strdup(vim->filename);
 }
 
 static void 
 idocument_grab_focus (IAnjutaDocument *doc, GError **err)
 {
-
+	VimEditor* vim = (VimEditor*) doc;
+	gtk_widget_grab_focus (GTK_WIDGET(&vim->parent));
 }
 
 static void 
 idocument_paste (IAnjutaDocument *doc, GError **err)
 {
+	VimEditor *vim = (VimEditor*) doc;
+	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+
+	g_assert (err == NULL);
+	// Create query string
+	vim_dbus_exec_without_reply (vim, ":put \"*", err);
+	
+	// TODO: Error Handling...
 }
 
 static void 
 idocument_redo (IAnjutaDocument *doc, GError **err)
 {
+	VimEditor *vim = (VimEditor*) doc;
+	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+
+	g_assert (err == NULL);
+	// Create query string
+	vim_dbus_exec_without_reply (vim, ":redo", err);
+	
+	// TODO: Error Handling...
 
 }
 
 static void 
 idocument_undo (IAnjutaDocument *doc, GError **err)
 {
+	VimEditor *vim = (VimEditor*) doc;
+	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+
+	g_assert (err == NULL);
+	// Create query string
+	vim_dbus_exec_without_reply (vim, ":undo", err);
+	
+	// TODO: Error Handling...
 
 }
 
 void 
 idocument_iface_init (IAnjutaDocumentIface *iface)
 {
-	/* signal */
-	iface->update_ui = idocument_update_ui;
-
 	iface->begin_undo_action = idocument_begin_undo_action;
 	iface->can_redo = idocument_can_redo;
 	iface->can_undo = idocument_can_undo;

@@ -29,6 +29,8 @@
 #include <libanjuta/anjuta-plugin.h>
 #include <dbus/dbus-glib.h>
 
+G_BEGIN_DECLS
+
 #define VIM_TYPE_EDITOR             (vim_editor_get_type ())
 #define VIM_EDITOR(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), VIM_TYPE_EDITOR, VimEditor))
 #define VIM_EDITOR_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), VIM_TYPE_EDITOR, VimEditorClass))
@@ -54,6 +56,7 @@ struct _VimEditor
 	guint socket_id;
 
 	// TODO: Make it a list
+	gchar* uri;
 	gchar* filename;
 	gchar* buf_id;
 
@@ -63,7 +66,9 @@ struct _VimEditor
 	DBusGProxy *dbus_proxy;
 };
 
-GType vim_editor_get_type (void);
+GType vim_editor_get_type (void) G_GNUC_CONST;
 VimEditor* vim_editor_new (AnjutaPlugin *plugin, const gchar* uri, const gchar* filename); 
+
+G_END_DECLS
 
 #endif /* _VIM_EDITOR_H_ */

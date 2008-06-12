@@ -60,7 +60,7 @@ LTLIBRARIES = $(plugin_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libanjuta_gvim_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libanjuta_gvim_la_OBJECTS = plugin.lo vim-editor.lo vim-ifile.lo \
-	vim-idocument.lo vim-ieditor.lo vim-dbus.lo
+	vim-idocument.lo vim-ieditor.lo vim-dbus.lo vim-cell.lo
 libanjuta_gvim_la_OBJECTS = $(am_libanjuta_gvim_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -298,7 +298,8 @@ libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
 	vim-ifile.c \
 	vim-idocument.c \
 	vim-ieditor.c  vim-dbus.c \
-	vim-dbus.h 
+	vim-dbus.h  vim-cell.h \
+	vim-cell.c
 
 
 # Plugin dependencies
@@ -383,6 +384,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plugin.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-cell.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-dbus.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-editor.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-idocument.Plo@am__quote@
