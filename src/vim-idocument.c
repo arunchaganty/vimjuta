@@ -24,120 +24,115 @@
 
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include "vim-editor.h"
+#include "vim-dbus.h"
 
-static void idocument_begin_undo_action (IAnjutaDocument *doc, GError **err)
+static void idocument_begin_undo_action (IAnjutaDocument *idoc, GError **err)
 {
 	/* Support for undo blocks is hard */
 }
 
 static gboolean 
-idocument_can_redo (IAnjutaDocument *doc, GError **err)
+idocument_can_redo (IAnjutaDocument *idoc, GError **err)
 {
 	return TRUE;
 }
 
 static gboolean 
-idocument_can_undo (IAnjutaDocument *doc, GError **err)
+idocument_can_undo (IAnjutaDocument *idoc, GError **err)
 {
 	return TRUE;
 }
 
 static void 
-idocument_clear (IAnjutaDocument *doc, GError **err)
+idocument_clear (IAnjutaDocument *idoc, GError **err)
 {
-	VimEditor *vim = (VimEditor*) doc;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	VimEditor *editor = (VimEditor*) idoc;
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (vim, "<ESC><ESC>", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, "<ESC><ESC>", err);
 	
 	// TODO: Error Handling...
 
 }
 
 static void 
-idocument_copy (IAnjutaDocument *doc, GError **err)
+idocument_copy (IAnjutaDocument *idoc, GError **err)
 {
-	VimEditor *vim = (VimEditor*) doc;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	VimEditor *editor = (VimEditor*) idoc;
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (vim, ":yank \"*", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":yank \"*", err);
 	
 	// TODO: Error Handling...
 }
 
 static void 
-idocument_cut (IAnjutaDocument *doc, GError **err)
+idocument_cut (IAnjutaDocument *idoc, GError **err)
 {
-	VimEditor *vim = (VimEditor*) doc;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	VimEditor *editor = (VimEditor*) idoc;
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (vim, ":yank \"*", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":yank \"*", err);
 	
 	// TODO: Error Handling...
 }
 
 static void 
-idocument_end_undo_action (IAnjutaDocument *doc, GError **err)
+idocument_end_undo_action (IAnjutaDocument *idoc, GError **err)
 {
 	/* Support for undo blocks is hard */
 }
 
 static const gchar* 
-idocument_get_filename (IAnjutaDocument *doc, GError **err)
+idocument_get_filename (IAnjutaDocument *idoc, GError **err)
 {
-	VimEditor* vim = (VimEditor*) doc;
-	return g_strdup(vim->filename);
+	VimEditor* editor = (VimEditor*) idoc;
+	return g_strdup(editor->priv->filename);
 }
 
 static void 
-idocument_grab_focus (IAnjutaDocument *doc, GError **err)
+idocument_grab_focus (IAnjutaDocument *idoc, GError **err)
 {
-	VimEditor* vim = (VimEditor*) doc;
-	gtk_widget_grab_focus (GTK_WIDGET(&vim->parent));
+	VimEditor* editor = (VimEditor*) idoc;
+	gtk_widget_grab_focus (GTK_WIDGET(editor->priv->widget));
 }
 
 static void 
-idocument_paste (IAnjutaDocument *doc, GError **err)
+idocument_paste (IAnjutaDocument *idoc, GError **err)
 {
-	VimEditor *vim = (VimEditor*) doc;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	VimEditor *editor = (VimEditor*) idoc;
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (vim, ":put \"*", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":put \"*", err);
 	
 	// TODO: Error Handling...
 }
 
 static void 
-idocument_redo (IAnjutaDocument *doc, GError **err)
+idocument_redo (IAnjutaDocument *idoc, GError **err)
 {
-	VimEditor *vim = (VimEditor*) doc;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	VimEditor *editor = (VimEditor*) idoc;
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (vim, ":redo", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":redo", err);
 	
 	// TODO: Error Handling...
 
 }
 
 static void 
-idocument_undo (IAnjutaDocument *doc, GError **err)
+idocument_undo (IAnjutaDocument *idoc, GError **err)
 {
-	VimEditor *vim = (VimEditor*) doc;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	VimEditor *editor = (VimEditor*) idoc;
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (vim, ":undo", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":undo", err);
 	
 	// TODO: Error Handling...
 

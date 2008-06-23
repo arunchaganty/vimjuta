@@ -7,7 +7,7 @@ import dbus
 import dbus.service
 
 DBUS_NAME_ANJUTA = 'org.anjuta'
-DBUS_PATH_VIM = '/org/anjuta/vim/daemon'
+DBUS_PATH_VIM = '/org/anjuta/vim'
 DBUS_IFACE_EDITOR_REMOTE = 'org.editors.remote'
 
 # A class that acts a daemon for Vim
@@ -90,6 +90,7 @@ if __name__ == "__main__":
     bus = dbus.SessionBus()
 #    loop = MainLoop()
 
+    # Use an arbitrarily set variable g:anjuta to make the bus unique.
     vim_anjuta = DBusDaemon (bus, DBUS_NAME_ANJUTA,'%s/daemon'%DBUS_PATH_VIM)
 
 #    threads_init()

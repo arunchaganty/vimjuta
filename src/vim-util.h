@@ -22,21 +22,11 @@
  * 	Boston, MA  02110-1301, USA.
  */
 
-/* DBus Helper Functions */
-#ifndef VIM_DBUS_H_
-#define VIM_DBUS_H_
+/* General Helper Functions */
+#ifndef VIM_UTIL_H_
+#define VIM_UTIL_H_
 
-#include "vim-widget.h"
+gchar* convert2filename (const gchar* uri);
+gchar* convert2uri (const gchar* file, const gchar* schema);
 
-#define DBUS_NAME_ANJUTA "org.anjuta"
-#define DBUS_PATH_VIM "/org/anjuta/vim/daemon"
-#define DBUS_IFACE_EDITOR_REMOTE "org.editors.remote"
-
-gboolean vim_dbus_init (VimWidget *widget, GError **error);
-gchar* vim_dbus_query (VimWidget *widget, gchar* query, GError **error);
-gchar* vim_dbus_exec (VimWidget* widget, gchar* cmd, GError **error);
-void vim_dbus_exec_without_reply (VimWidget* widget, gchar* cmd, GError **error);
-gchar* vim_dbus_get_buf (VimWidget *widget, guint start, guint end, GError **error);
-gchar* vim_dbus_get_buf_full (VimWidget *widget, GError **error);
-
-#endif /* VIM-DBUS_H_ */
+#endif /* VIM_UTIL_H_ */

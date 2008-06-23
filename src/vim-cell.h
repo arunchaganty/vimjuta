@@ -55,7 +55,7 @@ struct _VimEditorCell
 };
 
 GType vim_cell_get_type (void) G_GNUC_CONST;
-VimEditorCell* vim_cell_new (VimEditor* vim, gint position);
+VimEditorCell* vim_cell_new (VimEditor* editor, gint position);
 VimEditor* vim_cell_get_editor (VimEditorCell *cell);
 void vim_cell_set_position (VimEditorCell *cell, gint position);
 gint vim_cell_get_position (VimEditorCell *cell);

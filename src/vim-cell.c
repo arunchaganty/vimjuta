@@ -22,13 +22,14 @@
  * 	Boston, MA  02110-1301, USA.
  */
 
-#include "vim-cell.h"
 #include <libanjuta/interfaces/ianjuta-iterable.h>
+#include "vim-cell.h"
+#include "vim-dbus.h"
 
 static GObjectClass* parent_class = NULL;
 
 struct _VimEditorCellPrivate {
-	VimEditor *vim;
+	VimEditor *editor;
 	gint position;
 };
 
@@ -46,13 +47,17 @@ static gboolean
 iiter_next (IAnjutaIterable* iter, GError** e)
 {
 	VimEditorCell* cell = VIM_CELL(iter);
-	gint old_position;
+	gint final_pos;
 
-	old_position = cell->priv->position;
-	cell->priv->position = vim_dbus_int_query (cell->priv->vim, "AnjutaIterNext()", e);
-
-	if (old_position == cell->priv->position)
+	// FIXME: Seems expensive
+	final_pos = vim_dbus_int_query (cell->priv->editor->priv->widget, "AnjutaPos('$')", e);
+	if (cell->priv->position >= final_pos) 
+	{
+		cell->priv->position = final_pos;
 		return FALSE;
+	}
+	cell->priv->position++;
+
 	return TRUE;
 }
 
@@ -60,11 +65,15 @@ static gboolean
 iiter_previous (IAnjutaIterable* iter, GError** e)
 {
 	VimEditorCell* cell = VIM_CELL(iter);
-	gint old_position;
-	cell->priv->position = vim_dbus_int_query (cell->priv->vim, "AnjutaIterPrev()", e);
-
-	if (old_position == cell->priv->position)
+	gint begin_pos;
+	// FIXME: Seems highly sub-optimal
+	begin_pos = vim_dbus_int_query (cell->priv->editor->priv->widget, "AnjutaPos('0')", e);
+	if (cell->priv->position >= begin_pos) 
+	{
+		cell->priv->position = begin_pos;
 		return FALSE;
+	}
+	cell->priv->position++;
 	return TRUE;
 }
 
@@ -72,11 +81,12 @@ static gboolean
 iiter_last (IAnjutaIterable* iter, GError** e)
 {
 	VimEditorCell* cell = VIM_CELL(iter);
-	gint old_position;
-	cell->priv->position = vim_dbus_int_query (cell->priv->vim, "AnjutaIterLast()", e);
-
-	if (old_position == cell->priv->position)
+	gint final_pos;
+	// FIXME: Seems highly sub-optimal
+	final_pos = vim_dbus_int_query (cell->priv->editor->priv->widget, "AnjutaPos('$')", e);
+	if (cell->priv->position == final_pos) 
 		return FALSE;
+	cell->priv->position = final_pos;
 	return TRUE;
 }
 
@@ -102,23 +112,26 @@ static gboolean
 iiter_set_position (IAnjutaIterable* iter, gint position, GError** e)
 {
 	gchar* cmd;
-	gboolean within_range = TRUE;
+	gint final_pos;
 	VimEditorCell* cell = VIM_CELL(iter);
+
+	final_pos = vim_dbus_int_query (cell->priv->editor->priv->widget, "AnjutaPos('$')", e);
 	
 	if (position < 0)
 	{
 		/* Set to end-iter (length of the doc) */
-		cell->priv->position = vim_dbus_int_query (cell->priv->vim, "AnjutaIterLast()", e);
-		return within_range;
+		cell->priv->position = final_pos;
+		return TRUE;
 	}
-	
-	/* FIXME: Signal out of range */
-	/* Iterate untill the we reach given character position */
-	/* Default func behaviour is to stop at last byte */
-	cmd = g_strdup_printf ("AnjutaIterSetPos(%d)", position);
-	cell->priv->position = vim_dbus_int_query (cell->priv->vim, cmd, e);
-	g_free (cmd);
-	return within_range;
+
+	if (position > final_pos) 
+	{
+		cell->priv->position = position;
+		return  TRUE;
+	}
+	else
+		return FALSE;
+
 }
 
 static gint
@@ -128,26 +141,21 @@ iiter_get_position (IAnjutaIterable* iter, GError** e)
 	
 	VimEditorCell* cell = VIM_CELL(iter);
 
-	/* TODO: Should this modify the iter? */
-	cell->priv->position = vim_dbus_int_query (cell->priv->vim, "AnjutaIterGetPos()", e);
-
 	return cell->priv->position;
 }
 
 static gint
 iiter_get_length (IAnjutaIterable* iter, GError** e)
 {
-	gint byte_length;
-	
 	VimEditorCell* cell = VIM_CELL(iter);
-	return vim_dbus_int_query (cell->priv->vim, "AnjutaIterLast()", e);
+	return vim_dbus_int_query (cell->priv->editor->priv->widget, "AnjutaPos('$')", e);
 }
 
 static IAnjutaIterable *
 iiter_clone (IAnjutaIterable *iter, GError **e)
 {
 	VimEditorCell *src = VIM_CELL (iter);
-	VimEditorCell *cell = vim_cell_new (src->priv->vim,
+	VimEditorCell *cell = vim_cell_new (src->priv->editor,
 												 src->priv->position);
 	return IANJUTA_ITERABLE (cell);
 }
@@ -157,7 +165,7 @@ iiter_assign (IAnjutaIterable *iter, IAnjutaIterable *src_iter, GError **e)
 {
 	VimEditorCell *cell = VIM_CELL (iter);
 	VimEditorCell *src = VIM_CELL (src_iter);
-	cell->priv->vim = src->priv->vim;
+	cell->priv->editor = src->priv->editor;
 	cell->priv->position = src->priv->position;
 }
 
@@ -184,17 +192,17 @@ iiter_diff (IAnjutaIterable *iter, IAnjutaIterable *iter2, GError **e)
 /* Class Implementation */
 
 VimEditorCell*
-vim_cell_new (VimEditor* vim, gint position)
+vim_cell_new (VimEditor* editor, gint position)
 {
 	VimEditorCell *cell;
 	
-	g_return_val_if_fail (VIM_IS_EDITOR (vim), NULL);
+	g_return_val_if_fail (VIM_IS_EDITOR (editor), NULL);
 	g_return_val_if_fail (position >= 0, NULL);
 	
 	cell = VIM_CELL (g_object_new(VIM_TYPE_CELL, NULL));
 	
-	g_object_ref (vim);
-	cell->priv->vim = vim;
+	g_object_ref (editor);
+	cell->priv->editor = editor;
 	vim_cell_set_position (cell, position);
 	return cell;
 }
@@ -203,7 +211,7 @@ VimEditor*
 vim_cell_get_editor (VimEditorCell *cell)
 {
 	g_return_val_if_fail (VIM_IS_CELL(cell), NULL);
-	return cell->priv->vim;
+	return cell->priv->editor;
 }
 
 void

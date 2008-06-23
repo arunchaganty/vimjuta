@@ -882,6 +882,9 @@ PO_IN_DATADIR_FALSE
 POFILES
 POSUB
 MKINSTALLDIRS
+INTLTOOL_UPDATE
+INTLTOOL_MERGE
+INTLTOOL_EXTRACT
 INTLTOOL_DESKTOP_RULE
 INTLTOOL_DIRECTORY_RULE
 INTLTOOL_KEYS_RULE
@@ -902,9 +905,6 @@ INTLTOOL_THEME_RULE
 INTLTOOL_SERVICE_RULE
 INTLTOOL_POLICY_RULE
 MSGMERGE
-INTLTOOL_EXTRACT
-INTLTOOL_MERGE
-INTLTOOL_UPDATE
 INTLTOOL_PERL
 ALL_LINGUAS
 LIBTOOL
@@ -7607,14 +7607,140 @@ if test -n "0.35.0"; then
 $as_echo_n "checking for intltool >= 0.35.0... " >&6; }
 
     INTLTOOL_REQUIRED_VERSION_AS_INT=`echo 0.35.0 | awk -F. '{ print $ 1 * 1000 + $ 2 * 100 + $ 3; }'`
-    INTLTOOL_APPLIED_VERSION=`awk -F\" '/\\$VERSION / { print $ 2; }' ${ac_aux_dir}/intltool-update.in`
-    INTLTOOL_APPLIED_VERSION_AS_INT=`awk -F\" '/\\$VERSION / { split($ 2, VERSION, "."); print VERSION[1] * 1000 + VERSION[2] * 100 + VERSION[3];}' ${ac_aux_dir}/intltool-update.in`
+    INTLTOOL_APPLIED_VERSION=`intltool-update --version | head -1 | cut -d" " -f3`
+    INTLTOOL_APPLIED_VERSION_AS_INT=`echo $INTLTOOL_APPLIED_VERSION | awk -F. '{ print $ 1 * 1000 + $ 2 * 100 + $ 3; }'`
     
     { $as_echo "$as_me:$LINENO: result: $INTLTOOL_APPLIED_VERSION found" >&5
 $as_echo "$INTLTOOL_APPLIED_VERSION found" >&6; }
     test "$INTLTOOL_APPLIED_VERSION_AS_INT" -ge "$INTLTOOL_REQUIRED_VERSION_AS_INT" ||
 	{ { $as_echo "$as_me:$LINENO: error: Your intltool is too old.  You need intltool 0.35.0 or later." >&5
 $as_echo "$as_me: error: Your intltool is too old.  You need intltool 0.35.0 or later." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+# Extract the first word of "intltool-update", so it can be a program name with args.
+set dummy intltool-update; ac_word=$2
+{ $as_echo "$as_me:$LINENO: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if test "${ac_cv_path_INTLTOOL_UPDATE+set}" = set; then
+  $as_echo_n "(cached) " >&6
+else
+  case $INTLTOOL_UPDATE in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_INTLTOOL_UPDATE="$INTLTOOL_UPDATE" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_INTLTOOL_UPDATE="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+INTLTOOL_UPDATE=$ac_cv_path_INTLTOOL_UPDATE
+if test -n "$INTLTOOL_UPDATE"; then
+  { $as_echo "$as_me:$LINENO: result: $INTLTOOL_UPDATE" >&5
+$as_echo "$INTLTOOL_UPDATE" >&6; }
+else
+  { $as_echo "$as_me:$LINENO: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# Extract the first word of "intltool-merge", so it can be a program name with args.
+set dummy intltool-merge; ac_word=$2
+{ $as_echo "$as_me:$LINENO: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if test "${ac_cv_path_INTLTOOL_MERGE+set}" = set; then
+  $as_echo_n "(cached) " >&6
+else
+  case $INTLTOOL_MERGE in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_INTLTOOL_MERGE="$INTLTOOL_MERGE" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_INTLTOOL_MERGE="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+INTLTOOL_MERGE=$ac_cv_path_INTLTOOL_MERGE
+if test -n "$INTLTOOL_MERGE"; then
+  { $as_echo "$as_me:$LINENO: result: $INTLTOOL_MERGE" >&5
+$as_echo "$INTLTOOL_MERGE" >&6; }
+else
+  { $as_echo "$as_me:$LINENO: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# Extract the first word of "intltool-extract", so it can be a program name with args.
+set dummy intltool-extract; ac_word=$2
+{ $as_echo "$as_me:$LINENO: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if test "${ac_cv_path_INTLTOOL_EXTRACT+set}" = set; then
+  $as_echo_n "(cached) " >&6
+else
+  case $INTLTOOL_EXTRACT in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_INTLTOOL_EXTRACT="$INTLTOOL_EXTRACT" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_INTLTOOL_EXTRACT="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+INTLTOOL_EXTRACT=$ac_cv_path_INTLTOOL_EXTRACT
+if test -n "$INTLTOOL_EXTRACT"; then
+  { $as_echo "$as_me:$LINENO: result: $INTLTOOL_EXTRACT" >&5
+$as_echo "$INTLTOOL_EXTRACT" >&6; }
+else
+  { $as_echo "$as_me:$LINENO: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test -z "$INTLTOOL_UPDATE" -o -z "$INTLTOOL_MERGE" -o -z "$INTLTOOL_EXTRACT"; then
+    { { $as_echo "$as_me:$LINENO: error: The intltool scripts were not found. Please install intltool." >&5
+$as_echo "$as_me: error: The intltool scripts were not found. Please install intltool." >&2;}
    { (exit 1); exit 1; }; }
 fi
 
@@ -7792,14 +7918,6 @@ if test -z "$xgversion" -o -z "$mmversion" -o -z "$mfversion"; then
 $as_echo "$as_me: error: GNU gettext tools not found; required for intltool" >&2;}
    { (exit 1); exit 1; }; }
 fi
-
-# Use the tools built into the package, not the ones that are installed.
-INTLTOOL_EXTRACT='$(top_builddir)/intltool-extract'
-
-INTLTOOL_MERGE='$(top_builddir)/intltool-merge'
-
-INTLTOOL_UPDATE='$(top_builddir)/intltool-update'
-
 
 # Extract the first word of "perl", so it can be a program name with args.
 set dummy perl; ac_word=$2
@@ -8018,10 +8136,6 @@ rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
 fi
 
 
-
-
-
-ac_config_commands="$ac_config_commands intltool"
 
 
 
@@ -14838,12 +14952,12 @@ if test -n "$LIBANJUTA_CFLAGS"; then
     pkg_cv_LIBANJUTA_CFLAGS="$LIBANJUTA_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libanjuta-1.0 dbus-glib-1 vte\"") >&5
-  ($PKG_CONFIG --exists --print-errors "libanjuta-1.0 dbus-glib-1 vte") 2>&5
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libanjuta-1.0 dbus-glib-1 \"") >&5
+  ($PKG_CONFIG --exists --print-errors "libanjuta-1.0 dbus-glib-1 ") 2>&5
   ac_status=$?
   $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_LIBANJUTA_CFLAGS=`$PKG_CONFIG --cflags "libanjuta-1.0 dbus-glib-1 vte" 2>/dev/null`
+  pkg_cv_LIBANJUTA_CFLAGS=`$PKG_CONFIG --cflags "libanjuta-1.0 dbus-glib-1 " 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -14854,12 +14968,12 @@ if test -n "$LIBANJUTA_LIBS"; then
     pkg_cv_LIBANJUTA_LIBS="$LIBANJUTA_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libanjuta-1.0 dbus-glib-1 vte\"") >&5
-  ($PKG_CONFIG --exists --print-errors "libanjuta-1.0 dbus-glib-1 vte") 2>&5
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libanjuta-1.0 dbus-glib-1 \"") >&5
+  ($PKG_CONFIG --exists --print-errors "libanjuta-1.0 dbus-glib-1 ") 2>&5
   ac_status=$?
   $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_LIBANJUTA_LIBS=`$PKG_CONFIG --libs "libanjuta-1.0 dbus-glib-1 vte" 2>/dev/null`
+  pkg_cv_LIBANJUTA_LIBS=`$PKG_CONFIG --libs "libanjuta-1.0 dbus-glib-1 " 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -14877,14 +14991,14 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        LIBANJUTA_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libanjuta-1.0 dbus-glib-1 vte" 2>&1`
+	        LIBANJUTA_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libanjuta-1.0 dbus-glib-1 " 2>&1`
         else 
-	        LIBANJUTA_PKG_ERRORS=`$PKG_CONFIG --print-errors "libanjuta-1.0 dbus-glib-1 vte" 2>&1`
+	        LIBANJUTA_PKG_ERRORS=`$PKG_CONFIG --print-errors "libanjuta-1.0 dbus-glib-1 " 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$LIBANJUTA_PKG_ERRORS" >&5
 
-	{ { $as_echo "$as_me:$LINENO: error: Package requirements (libanjuta-1.0 dbus-glib-1 vte) were not met:
+	{ { $as_echo "$as_me:$LINENO: error: Package requirements (libanjuta-1.0 dbus-glib-1 ) were not met:
 
 $LIBANJUTA_PKG_ERRORS
 
@@ -14895,7 +15009,7 @@ Alternatively, you may set the environment variables LIBANJUTA_CFLAGS
 and LIBANJUTA_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 " >&5
-$as_echo "$as_me: error: Package requirements (libanjuta-1.0 dbus-glib-1 vte) were not met:
+$as_echo "$as_me: error: Package requirements (libanjuta-1.0 dbus-glib-1 ) were not met:
 
 $LIBANJUTA_PKG_ERRORS
 
@@ -15586,9 +15700,6 @@ cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
 #
 AMDEP_TRUE="$AMDEP_TRUE" ac_aux_dir="$ac_aux_dir"
 
-INTLTOOL_PERL='${INTLTOOL_PERL}' ac_aux_dir='${ac_aux_dir}'
-prefix="$prefix" exec_prefix="$exec_prefix" INTLTOOL_LIBDIR="$libdir" 
-INTLTOOL_EXTRACT='${INTLTOOL_EXTRACT}'
 
 
 # The HP-UX ksh and POSIX shell print the target directory to stdout
@@ -15854,7 +15965,6 @@ do
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "default-1") CONFIG_COMMANDS="$CONFIG_COMMANDS default-1" ;;
-    "intltool") CONFIG_COMMANDS="$CONFIG_COMMANDS intltool" ;;
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
@@ -16640,23 +16750,6 @@ done
     "default-1":C) case "$CONFIG_FILES" in *po/Makefile.in*)
         sed -e "/POTFILES =/r po/POTFILES" po/Makefile.in > po/Makefile
       esac ;;
-    "intltool":C) 
-
-for file in intltool-extract intltool-merge intltool-update; do
-  sed -e "s|@INTLTOOL_EXTRACT@|`pwd`/intltool-extract|g" \
-      -e "s|@INTLTOOL_LIBDIR@|${INTLTOOL_LIBDIR}|g" \
-      -e "s|@INTLTOOL_PERL@|${INTLTOOL_PERL}|g" \
-	< ${ac_aux_dir}/${file}.in > ${file}.out
-  if cmp -s ${file} ${file}.out 2>/dev/null; then
-    rm -f ${file}.out
-  else
-    mv -f ${file}.out ${file}
-  fi
-  chmod ugo+x ${file}
-  chmod u+w ${file}
-done
-
- ;;
     "libtool":C) 
     
     # See if we are running on zsh, and set the options which allow our

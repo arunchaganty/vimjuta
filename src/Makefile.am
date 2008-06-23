@@ -2,7 +2,8 @@
 
 # Plugin UI file
 anjuta_gvim_uidir = $(anjuta_ui_dir)
-anjuta_gvim_ui_DATA =  anjuta_gvim.ui
+anjuta_gvim_ui_DATA =  anjuta_gvim.ui \
+	vim-test.ui
 
 
 # Plugin Glade file
@@ -53,7 +54,10 @@ libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
 	vim-idocument.c \
 	vim-ieditor.c  vim-dbus.c \
 	vim-dbus.h  vim-cell.h \
-	vim-cell.c
+	vim-cell.c\
+	vim-test.c\
+	vim-util.c  vim-widget.h \
+	vim-widget.c
 
 
 # Plugin dependencies
@@ -66,4 +70,5 @@ EXTRA_DIST = \
 	$(anjuta_gvim_ui_DATA) \
 	$(anjuta_gvim_glade_DATA) \
 	$(anjuta_gvim_pixmaps_DATA) \
-	vim-dbus.py
+	vim-dbus.py \
+	vim-test.ui

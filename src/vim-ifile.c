@@ -24,16 +24,27 @@
 
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-file-savable.h>
+#include <libanjuta/anjuta-debug.h>
 #include "vim-editor.h"
+#include "vim-util.h"
+#include "vim-dbus.h"
 
 static gchar* 
 ifile_get_uri (IAnjutaFile *obj, GError **err) {
-	VimEditor *vim = (VimEditor*) obj;
-	return g_strdup(vim->uri);
+	VimEditor *editor = (VimEditor*) obj;
+	return g_strdup(editor->priv->uri);
 }
 
 static void
 ifile_open (IAnjutaFile *obj, const gchar *uri, GError **err) {
+	VimEditor* editor = VIM_EDITOR(obj);
+	gchar *cmd;
+	g_assert (uri != NULL);
+
+	cmd = g_strdup_printf (":edit %s", convert2filename(uri));
+	g_message ("Executing: %s", cmd);
+
+	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
 
 }
 
@@ -49,28 +60,26 @@ ifile_iface_init (IAnjutaFileIface *iface)
 static gboolean
 isave_is_dirty (IAnjutaFileSavable *obj, GError **err)
 {
-	VimEditor* vim = VIM_EDITOR (obj);
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), TRUE);
-	return vim_dbus_int_query (vim, "&modified", err);
+	VimEditor* editor = VIM_EDITOR (obj);
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), TRUE);
+	return vim_dbus_int_query (editor->priv->widget, "&modified", err);
 }
 
 static void
 isave_save (IAnjutaFileSavable *obj, GError **err)
 {
-	VimEditor* vim = VIM_EDITOR (obj);
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
-	vim_dbus_exec_without_reply (vim, ":w", err);
+	VimEditor* editor = VIM_EDITOR (obj);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":w", err);
 }
 
 static void
 isave_save_as (IAnjutaFileSavable *obj, const gchar *uri, GError **err)
 {
-	VimEditor* vim = VIM_EDITOR (obj);
+	VimEditor* editor = VIM_EDITOR (obj);
 	gchar *cmd = NULL;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 
-	cmd = g_strdup_printf (cmd, ":w %s", uri);
-	vim_dbus_exec_without_reply (vim, cmd, err);
+	cmd = g_strdup_printf (":w %s", uri);
+	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
 
 	g_free (cmd);
 }
@@ -78,15 +87,14 @@ isave_save_as (IAnjutaFileSavable *obj, const gchar *uri, GError **err)
 static void
 isave_set_dirty (IAnjutaFileSavable *obj, gboolean dirty, GError **err)
 {
-	VimEditor* vim = VIM_EDITOR (obj);
+	VimEditor* editor = VIM_EDITOR (obj);
 	gchar *cmd = NULL;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 
 	if (dirty) 
-		cmd = g_strdup_printf (cmd, ":set modified");
+		cmd = g_strdup_printf (":set modified");
 	else
-		cmd = g_strdup_printf (cmd, ":unset modified");
-	vim_dbus_exec_without_reply (vim, cmd, err);
+		cmd = g_strdup_printf (":unset modified");
+	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
 
 	g_free (cmd);
 }

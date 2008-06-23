@@ -26,33 +26,32 @@
  */
 
 
-
+#include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
+#include <libanjuta/interfaces/ianjuta-editor-multiple.h>
 #include "vim-editor.h"
 #include "vim-dbus.h"
 #include "vim-cell.h"
 
 static gint
-ieditor_get_tabsize (IAnjutaEditor *editor, GError **err)
+ieditor_get_tabsize (IAnjutaEditor *ieditor, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), 4);
-	return vim_dbus_int_query (vim, "&tabstop", err);
+	VimEditor *editor = (VimEditor*) ieditor;
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 4);
+	return vim_dbus_int_query (editor->priv->widget, "&tabstop", err);
 }
 
 static void
-ieditor_set_tabsize (IAnjutaEditor *editor, gint tabsize, GError **err)
+ieditor_set_tabsize (IAnjutaEditor *ieditor, gint tabsize, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* query = NULL;
 
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 	g_assert (err == NULL);
 	// Create query string
-	query = g_strnfill (20, '\0');
-	g_strdup_printf (":set tabstop=%s", tabsize);
+	query = g_strdup_printf (":set tabstop=%d", tabsize);
 
-	vim_dbus_exec_without_reply (vim, query, err);
+	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
 	
 	// TODO: Error Handling...
 
@@ -60,29 +59,28 @@ ieditor_set_tabsize (IAnjutaEditor *editor, gint tabsize, GError **err)
 }
 
 static gboolean
-ieditor_get_use_spaces (IAnjutaEditor *editor, GError **err)
+ieditor_get_use_spaces (IAnjutaEditor *ieditor, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), TRUE);
-	return vim_dbus_int_query (vim, "&expand", err);
+	VimEditor *editor = (VimEditor*) ieditor;
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), TRUE);
+	return vim_dbus_int_query (editor->priv->widget, "&expandtab", err);
 	return TRUE;
 }
 
 static void
-ieditor_set_use_spaces (IAnjutaEditor *editor, gboolean use_spaces, GError **err)
+ieditor_set_use_spaces (IAnjutaEditor *ieditor, gboolean use_spaces, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* query = NULL;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 
 	g_assert (err == NULL);
 	// Create query string
 	if (use_spaces)
-		g_strdup_printf (":set expandtab");
+		query = g_strdup_printf (":set expandtab");
 	else
-		g_strdup_printf (":set noexpandtab");
+		query = g_strdup_printf (":set noexpandtab");
 
-	vim_dbus_exec_without_reply (vim, query, err);
+	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
 	
 	// TODO: Error Handling...
 
@@ -90,21 +88,20 @@ ieditor_set_use_spaces (IAnjutaEditor *editor, gboolean use_spaces, GError **err
 }
 
 static void
-ieditor_set_auto_indent (IAnjutaEditor *editor, gboolean auto_indent, GError **err)
+ieditor_set_auto_indent (IAnjutaEditor *ieditor, gboolean auto_indent, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* query = NULL;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 
 	g_assert (err == NULL);
 	// Create query string
 	if (auto_indent)
-		g_strdup_printf (":set autoindent");
+		query = g_strdup_printf (":set autoindent");
 	else
-		g_strdup_printf (":set noautoindent");
+		query = g_strdup_printf (":set noautoindent");
 
 
-	vim_dbus_exec_without_reply (vim, query, err);
+	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
 	
 	// TODO: Error Handling...
 
@@ -114,17 +111,16 @@ ieditor_set_auto_indent (IAnjutaEditor *editor, gboolean auto_indent, GError **e
 
 /* Scroll to line */
 static void 
-ieditor_goto_line(IAnjutaEditor *editor, gint line, GError **err)
+ieditor_goto_line(IAnjutaEditor *ieditor, gint line, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* query = NULL;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 
 	g_assert (err == NULL);
 	// Create query string
 	query = g_strdup_printf (":%d ", line);
 
-	vim_dbus_exec_without_reply (vim, query, err);
+	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
 	
 	// TODO: Error Handling...
 
@@ -133,18 +129,17 @@ ieditor_goto_line(IAnjutaEditor *editor, gint line, GError **err)
 
 /* Scroll to position */
 static void 
-ieditor_goto_position(IAnjutaEditor *editor, IAnjutaIterable* icell,
+ieditor_goto_position(IAnjutaEditor *ieditor, IAnjutaIterable* icell,
 								  GError **err)
 {
-	VimEditor *vim = VIM_EDITOR (editor);
+	VimEditor *editor = VIM_EDITOR (ieditor);
 	gchar* query = NULL;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 
 	g_assert (err == NULL);
 	// Create query string
 	query = g_strdup_printf (":goto %d ", ianjuta_iterable_get_position (icell, err));
 
-	vim_dbus_exec_without_reply (vim, query, err);
+	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
 	
 	// TODO: Error Handling...
 
@@ -152,14 +147,14 @@ ieditor_goto_position(IAnjutaEditor *editor, IAnjutaIterable* icell,
 }
 
 static gchar* 
-ieditor_get_text (IAnjutaEditor* editor, 
+ieditor_get_text (IAnjutaEditor* ieditor, 
 				IAnjutaIterable* start,
 				IAnjutaIterable* end, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* query = NULL;
 	gchar* reply = NULL;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), NULL);
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), NULL);
 
 	g_assert (err == NULL);
 	// Create query string
@@ -167,7 +162,7 @@ ieditor_get_text (IAnjutaEditor* editor,
 			ianjuta_iterable_get_position (start,err), 
 			ianjuta_iterable_get_position (end,err));
 
-	reply = vim_dbus_query (vim, query, err);
+	reply = vim_dbus_query (editor->priv->widget, query, err);
 	
 	// TODO: Error Handling...
 
@@ -175,14 +170,14 @@ ieditor_get_text (IAnjutaEditor* editor,
 }
 
 static gchar*
-ieditor_get_text_all (IAnjutaEditor* editor, GError **err)
+ieditor_get_text_all (IAnjutaEditor* ieditor, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* reply = NULL;
 
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim),NULL);
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget),NULL);
 	g_assert (err == NULL);
-	reply = vim_dbus_get_buf_full (vim, err);
+	reply = vim_dbus_get_buf_full (editor->priv->widget, err);
 	
 	// TODO: Error Handling...
 
@@ -191,122 +186,119 @@ ieditor_get_text_all (IAnjutaEditor* editor, GError **err)
 
 /* Get cursor position */
 static IAnjutaIterable*
-ieditor_get_position (IAnjutaEditor* editor, GError **err)
+ieditor_get_position (IAnjutaEditor* ieditor, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	VimEditorCell *cell;
 	gchar* reply = NULL;
 	gint position;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), NULL);
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), NULL);
 
 	g_assert (err == NULL);
-	position = vim_dbus_int_query(vim, "AnjutaGetPos()", err);
+	position = vim_dbus_int_query(editor->priv->widget, "AnjutaGetPos()", err);
 
-	cell = vim_cell_new (vim, position);
+	cell = vim_cell_new (editor, position);
 	// TODO: Error Handling...
 
 	return IANJUTA_ITERABLE (cell);
 }
 
 static gint
-ieditor_get_offset (IAnjutaEditor* editor, GError **err)
+ieditor_get_offset (IAnjutaEditor* ieditor, GError **err)
 {
 	return 0;
 }
 
 /* Return line of cursor */
 static gint
-ieditor_get_lineno(IAnjutaEditor *editor, GError **err)
+ieditor_get_lineno(IAnjutaEditor *ieditor, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), 0);
-	return vim_dbus_int_query (vim, "line ('.')", err);
+	VimEditor *editor = (VimEditor*) ieditor;
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 0);
+	return vim_dbus_int_query (editor->priv->widget, "line ('.')", err);
 
 	return 0;
 }
 
 /* Return the length of the text in the buffer */
 static gint 
-ieditor_get_length(IAnjutaEditor *editor, GError **err)
+ieditor_get_length(IAnjutaEditor *ieditor, GError **err)
 {
 	return 0;
 }
 
 /* Return word on cursor position */
 static gchar*
-ieditor_get_current_word(IAnjutaEditor *editor, GError **err)
+ieditor_get_current_word(IAnjutaEditor *ieditor, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), NULL);
-	return vim_dbus_query (vim, "expand('<cword>')", err);
+	VimEditor *editor = (VimEditor*) ieditor;
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), NULL);
+	return vim_dbus_query (editor->priv->widget, "expand('<cword>')", err);
 }
 
 /* Insert text at position */
 static void 
-ieditor_insert(IAnjutaEditor *editor, IAnjutaIterable* icell,
+ieditor_insert(IAnjutaEditor *ieditor, IAnjutaIterable* icell,
 							   const gchar* text, gint length, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	gchar* str = NULL;
+	VimEditor *editor = (VimEditor*) ieditor;
+	gchar* query = NULL;
 	gint position = ianjuta_iterable_get_position (icell, err);
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
 
 	g_assert (err == NULL);
-	g_strdup_printf (str, "AnjutaInsert ('%s',%d)", text, position);
+	query = g_strdup_printf ("AnjutaInsert ('%s',%d)", text, position);
 
-	vim_dbus_exec_without_reply (vim, str, err);
-	g_free (str);
+	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
+	g_free (query);
 	
 	// TODO: Error Handling...
 }
 
 /* Append text to buffer */
 static void 
-ieditor_append(IAnjutaEditor *editor, const gchar* text,
+ieditor_append(IAnjutaEditor *ieditor, const gchar* text,
 							   gint length, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	gchar* str = NULL;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	VimEditor *editor = (VimEditor*) ieditor;
+	gchar* query = NULL;
 
 	g_assert (err == NULL);
-	g_strdup_printf (str, "AnjutaAppend ('%s')", text);
+	query = g_strdup_printf ("AnjutaAppend ('%s')", text);
 
-	vim_dbus_exec_without_reply (vim, str, err);
-	g_free (str);
+	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
+	g_free (query);
 	
 	// TODO: Error Handling...
 }
 
 static void 
-ieditor_erase(IAnjutaEditor* editor, IAnjutaIterable* istart_cell, 
+ieditor_erase(IAnjutaEditor* ieditor, IAnjutaIterable* istart_cell, 
 						  IAnjutaIterable* iend_cell, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* reply = NULL;
 	gchar* query = NULL;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	g_return_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget));
 
 	g_assert (err == NULL);
 	// Create query string
-	query = g_strdup_printf ("AnjutaClearBuf(%d, %d)", 
+	query = g_strdup_printf ("AnjutaErase(%d, %d)", 
 			ianjuta_iterable_get_position (istart_cell, err), 
 			ianjuta_iterable_get_position (iend_cell, err));
 
-	reply = vim_dbus_query (vim, query, err);
+	reply = vim_dbus_query (editor->priv->widget, query, err);
 	
 	// TODO: Error Handling...
 }
 
 static void 
-ieditor_erase_all(IAnjutaEditor *editor, GError **err)
+ieditor_erase_all(IAnjutaEditor *ieditor, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	VimEditor *editor = (VimEditor*) ieditor;
 
 	g_assert (err == NULL);
 
-	vim_dbus_exec_without_reply (vim, ":\%del", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":\%del", err);
 	
 	// TODO: Error Handling...
 	
@@ -314,94 +306,94 @@ ieditor_erase_all(IAnjutaEditor *editor, GError **err)
 
 /* Return column of cursor */
 static gint 
-ieditor_get_column(IAnjutaEditor *editor, GError **err)
+ieditor_get_column(IAnjutaEditor *ieditor, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), 0);
+	VimEditor *editor = (VimEditor*) ieditor;
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 0);
 
 	g_assert (err == NULL);
-	return vim_dbus_int_query (vim, "col ('.')", err);
+	return vim_dbus_int_query (editor->priv->widget, "col ('.')", err);
 }
 
-/* Return TRUE if editor is in overwrite mode */
+/* Return TRUE if ieditor is in overwrite mode */
 static gboolean 
-ieditor_get_overwrite(IAnjutaEditor *editor, GError **err)
+ieditor_get_overwrite(IAnjutaEditor *ieditor, GError **err)
 {
 	return FALSE;
 }
 
 
-/* Set the editor popup menu */
+/* Set the ieditor popup menu */
 static void 
-ieditor_set_popup_menu(IAnjutaEditor *editor, 
+ieditor_set_popup_menu(IAnjutaEditor *ieditor, 
 								   GtkWidget* menu, GError **err)
 {
 }
 
 /* Convert from position to line */
 static gint 
-ieditor_get_line_from_position(IAnjutaEditor *editor, 
+ieditor_get_line_from_position(IAnjutaEditor *ieditor, 
 										   IAnjutaIterable* icell, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* query = NULL;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), 0);
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 0);
 
 	g_assert (err == NULL);
 	// Create query string
 	query = g_strdup_printf ("byte2line(%d)", ianjuta_iterable_get_position (icell, err));
-	return vim_dbus_int_query (vim, query, err);
+	return vim_dbus_int_query (editor->priv->widget, query, err);
 	
 	// TODO: Error Handling...
 }
 
 static IAnjutaIterable* 
-ieditor_get_line_begin_position(IAnjutaEditor *editor,
+ieditor_get_line_begin_position(IAnjutaEditor *ieditor,
 											gint line, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	VimEditorCell *cell = NULL;
 	gint position = 0;
 	gchar* query = NULL;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), NULL);
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), NULL);
 
 	query = g_strdup_printf ("line2byte(%d)", line);
-	position = vim_dbus_int_query (vim, query, err);
+	position = vim_dbus_int_query (editor->priv->widget, query, err);
 
-	vim_cell_new (vim, position);
+	vim_cell_new (editor, position);
 	
 	return IANJUTA_ITERABLE(cell);
 }
 
 static IAnjutaIterable*
-ieditor_get_line_end_position(IAnjutaEditor *editor,
+ieditor_get_line_end_position(IAnjutaEditor *ieditor,
 											gint line, GError **err)
 {
-	VimEditor *vim = (VimEditor*) editor;
+	VimEditor *editor = (VimEditor*) ieditor;
 	VimEditorCell *cell = NULL;
 	gint position = 0;
 	gchar* query = NULL;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), NULL);
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), NULL);
 
 	query = g_strdup_printf ("line2byte(%d+1)", line);
-	position = vim_dbus_int_query (vim, query, err) - 1;
+	position = vim_dbus_int_query (editor->priv->widget, query, err) - 1;
 
-	vim_cell_new (vim, position);
+	vim_cell_new (editor, position);
 	
 	return IANJUTA_ITERABLE(cell);
 }
 
 static IAnjutaIterable*
-ieditor_get_position_from_offset(IAnjutaEditor* editor, gint position, GError** err)
+ieditor_get_position_from_offset(IAnjutaEditor* ieditor, gint position, GError** err)
 {
 	return NULL;
 }
 
 static IAnjutaIterable*
-ieditor_get_start_position (IAnjutaEditor* editor, GError** err)
+ieditor_get_start_position (IAnjutaEditor* ieditor, GError** err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	VimEditorCell *cell = vim_cell_new (vim, 1);
+	VimEditor *editor = (VimEditor*) ieditor;
+	VimEditorCell *cell = vim_cell_new (editor, 1);
 
 	ianjuta_iterable_first (IANJUTA_ITERABLE(cell), err);
 	
@@ -409,11 +401,11 @@ ieditor_get_start_position (IAnjutaEditor* editor, GError** err)
 }
 
 static IAnjutaIterable*
-ieditor_get_end_position (IAnjutaEditor* editor, GError** err)
+ieditor_get_end_position (IAnjutaEditor* ieditor, GError** err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	VimEditorCell *cell = vim_cell_new (vim, 1);
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(vim), IANJUTA_ITERABLE(cell));
+	VimEditor *editor = (VimEditor*) ieditor;
+	VimEditorCell *cell = vim_cell_new (editor, 1);
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), IANJUTA_ITERABLE(cell));
 
 	ianjuta_iterable_last (IANJUTA_ITERABLE(cell), err);
 	
@@ -421,28 +413,26 @@ ieditor_get_end_position (IAnjutaEditor* editor, GError** err)
 }
 
 static void
-ieditor_goto_start (IAnjutaEditor* editor, GError** err)
+ieditor_goto_start (IAnjutaEditor* ieditor, GError** err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	VimEditor *editor = (VimEditor*) ieditor;
 
 	g_assert (err == NULL);
 
-	vim_dbus_exec_without_reply (vim, ":goto 1", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":goto 1", err);
 	
 	// TODO: Error Handling...
 	
 }
 
 static void
-ieditor_goto_end (IAnjutaEditor* editor, GError** err)
+ieditor_goto_end (IAnjutaEditor* ieditor, GError** err)
 {
-	VimEditor *vim = (VimEditor*) editor;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(vim));
+	VimEditor *editor = (VimEditor*) ieditor;
 
 	g_assert (err == NULL);
 
-	vim_dbus_exec_without_reply (vim, ":%", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":%", err);
 	
 	// TODO: Error Handling...
 }
@@ -481,3 +471,94 @@ ieditor_iface_init (IAnjutaEditorIface *iface)
 	iface->get_end_position = ieditor_get_end_position;
 }
 
+/* IAnjutaEditorMultiple */
+
+static void
+imultiple_add_document (IAnjutaEditorMultiple *obj, IAnjutaDocument *document, GError **err)
+{
+	VimEditor* editor = VIM_EDITOR (obj);
+	editor->priv->widget->priv->documents = g_list_append (editor->priv->widget->priv->documents, document);
+
+	ianjuta_file_open (IANJUTA_FILE (editor), ianjuta_file_get_uri(IANJUTA_FILE (editor), NULL), NULL);
+}
+
+static IAnjutaDocument*
+imultiple_get_current_document (IAnjutaEditorMultiple *obj, GError **err)
+{
+	VimEditor* editor = VIM_EDITOR (obj);
+	gint buf_id;
+	GList* node = editor->priv->widget->priv->documents; 
+	
+	buf_id = vim_dbus_int_query (editor->priv->widget, "bufnr('%')", err);
+
+	for (;node != NULL; node = g_list_next(node))
+	{
+		VimEditor *editor_ = VIM_EDITOR (node->data);
+		if (editor_->priv->buf_id == buf_id)
+			return IANJUTA_DOCUMENT(editor_);
+	}
+
+	g_return_val_if_reached (NULL);
+}
+
+static GtkWidget*
+imultiple_get_widget (IAnjutaEditorMultiple *obj, GError **err)
+{
+	VimEditor* editor = VIM_EDITOR (obj);
+
+	return GTK_WIDGET(editor->priv->widget);
+}
+
+static gboolean
+imultiple_has_document (IAnjutaEditorMultiple *obj, IAnjutaDocument *document, GError **err)
+{
+	VimEditor* editor = VIM_EDITOR (obj);
+	GList* node = editor->priv->widget->priv->documents; 
+
+	if (g_list_find (node, document))
+		return TRUE;
+	else
+		return FALSE;
+}
+
+static GList*
+imultiple_list_documents (IAnjutaEditorMultiple *obj, GError **err)
+{
+	VimEditor* editor = VIM_EDITOR (obj);
+	return g_list_copy (editor->priv->widget->priv->documents);
+}
+
+static void
+imultiple_remove_document (IAnjutaEditorMultiple *obj, IAnjutaDocument *document, GError **err)
+{
+	VimEditor* editor = VIM_EDITOR (obj);
+	editor->priv->widget->priv->documents = g_list_remove (editor->priv->widget->priv->documents, document);
+
+	vim_dbus_exec_without_reply (editor->priv->widget, ":bd", err);
+}
+
+static void
+imultiple_set_current_document (IAnjutaEditorMultiple *obj, IAnjutaDocument *document, GError **err)
+{
+	VimEditor* editor = VIM_EDITOR (obj);
+	gint buf_id = VIM_EDITOR (document)->priv->buf_id;
+	gchar* cmd = NULL;
+	
+	cmd = g_strdup_printf (":buffer %d", buf_id);
+	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
+	g_free (cmd);
+}
+
+void 
+imultiple_iface_init (IAnjutaEditorMultipleIface *iface)
+{
+	iface->add_document = imultiple_add_document;
+	iface->get_current_document = imultiple_get_current_document;
+	iface->get_widget = imultiple_get_widget;
+	iface->has_document = imultiple_has_document;
+	iface->list_documents = imultiple_list_documents;
+	iface->remove_document = imultiple_remove_document;
+	iface->list_documents = imultiple_list_documents;
+	iface->remove_document = imultiple_remove_document;
+	iface->set_current_document = imultiple_set_current_document;
+}

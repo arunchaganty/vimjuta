@@ -27,7 +27,7 @@
 
 #include <glib-object.h>
 #include <libanjuta/anjuta-plugin.h>
-#include <dbus/dbus-glib.h>
+#include "vim-widget.h"
 
 G_BEGIN_DECLS
 
@@ -38,33 +38,29 @@ G_BEGIN_DECLS
 #define VIM_IS_EDITOR_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), VIM_TYPE_EDITOR))
 #define VIM_EDITOR_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), VIM_TYPE_EDITOR, VimEditorClass))
 
-#define VIM_PLUGIN_IS_READY(vim)	((vim->socket_id != 0) && (vim->proxy != NULL))
-
 typedef struct _VimEditorClass VimEditorClass;
 typedef struct _VimEditor VimEditor;
+typedef struct _VimEditorPrivate VimEditorPrivate;
 
 struct _VimEditorClass
 {
-	GtkFrameClass parent_class;
+	GObjectClass parent_class;
 };
 
 struct _VimEditor
 {
-	GtkFrame parent;
-	/* private */
-	GtkSocket *socket;
-	guint socket_id;
+	GObject parent;
+	VimEditorPrivate *priv;
+};
 
-	// TODO: Make it a list
+struct _VimEditorPrivate
+{
 	gchar* uri;
 	gchar* filename;
-	gchar* buf_id;
-
-	// DBus Helpers
-	DBusGConnection *conn;
-	DBusGProxy *proxy;
-	DBusGProxy *dbus_proxy;
+	gint buf_id;
+	VimWidget *widget; /* Note, this is a singleton */
 };
+
 
 GType vim_editor_get_type (void) G_GNUC_CONST;
 VimEditor* vim_editor_new (AnjutaPlugin *plugin, const gchar* uri, const gchar* filename); 

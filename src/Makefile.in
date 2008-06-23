@@ -60,7 +60,8 @@ LTLIBRARIES = $(plugin_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libanjuta_gvim_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libanjuta_gvim_la_OBJECTS = plugin.lo vim-editor.lo vim-ifile.lo \
-	vim-idocument.lo vim-ieditor.lo vim-dbus.lo vim-cell.lo
+	vim-idocument.lo vim-ieditor.lo vim-dbus.lo vim-cell.lo \
+	vim-test.lo vim-util.lo vim-widget.lo
 libanjuta_gvim_la_OBJECTS = $(am_libanjuta_gvim_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -250,7 +251,9 @@ top_srcdir = @top_srcdir@
 
 # Plugin UI file
 anjuta_gvim_uidir = $(anjuta_ui_dir)
-anjuta_gvim_ui_DATA = anjuta_gvim.ui
+anjuta_gvim_ui_DATA = anjuta_gvim.ui \
+	vim-test.ui
+
 
 # Plugin Glade file
 anjuta_gvim_gladedir = $(anjuta_glade_dir)
@@ -299,7 +302,10 @@ libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
 	vim-idocument.c \
 	vim-ieditor.c  vim-dbus.c \
 	vim-dbus.h  vim-cell.h \
-	vim-cell.c
+	vim-cell.c\
+	vim-test.c\
+	vim-util.c  vim-widget.h \
+	vim-widget.c
 
 
 # Plugin dependencies
@@ -312,7 +318,8 @@ EXTRA_DIST = \
 	$(anjuta_gvim_ui_DATA) \
 	$(anjuta_gvim_glade_DATA) \
 	$(anjuta_gvim_pixmaps_DATA) \
-	vim-dbus.py
+	vim-dbus.py \
+	vim-test.ui
 
 all: all-am
 
@@ -390,6 +397,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-idocument.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-ieditor.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-ifile.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-test.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-util.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vim-widget.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

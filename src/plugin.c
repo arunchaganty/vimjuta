@@ -26,16 +26,37 @@
 #include <libanjuta/interfaces/ianjuta-editor.h>
 
 #include "vim-editor.h"
+#include "vim-test.h"
 #include "plugin.h"
 
-#define UI_FILE ANJUTA_DATA_DIR"/ui/anjuta_gvim.ui"
+#define UI_FILE ANJUTA_DATA_DIR"/ui/vim-test.ui"
 
 static gpointer parent_class;
+
+static GtkActionEntry actions_test[] = {
+	{
+		"TestBegin",                       /* Action name */
+		GTK_STOCK_NEW,                            /* Stock icon, if any */
+		N_("Begin Testing"),                     /* Display label */
+		NULL,                                     /* short-cut */
+		N_("Tests"),                      /* Tooltip */
+		G_CALLBACK (vim_test_begin)   /* action callback */
+	}
+};
 
 static gboolean
 anjuta_gvim_activate (AnjutaPlugin *plugin)
 {
+	VimPlugin *vim_plugin = ANJUTA_PLUGIN_GVIM (plugin);
+	AnjutaUI *ui;
 	DEBUG_PRINT ("VimPlugin: Activating VimPlugin plugin ...");
+	ui = anjuta_shell_get_ui (plugin->shell, NULL);
+	anjuta_ui_add_action_group_entries (ui, "ActionGroupVimFile",
+										_("VimPlugin Tests"),
+										actions_test,
+										G_N_ELEMENTS (actions_test),
+										GETTEXT_PACKAGE, TRUE, plugin);
+	vim_plugin->uiid = anjuta_ui_merge (ui, UI_FILE);
 	return TRUE;
 }
 
@@ -81,6 +102,11 @@ anjuta_gvim_class_init (GObjectClass *klass)
 	klass->dispose = anjuta_gvim_dispose;
 }
 
+/*
+ * Creates a new 'Editor', a document. The document
+ * has a reference to the vim instance through a private
+ * field, widget, used by the IAnjutaEditorMultiple.
+ */
 static IAnjutaEditor*
 ieditor_factory_new_editor (IAnjutaEditorFactory* factory,
 								const gchar* uri,
@@ -88,11 +114,11 @@ ieditor_factory_new_editor (IAnjutaEditorFactory* factory,
 								GError** error)
 {
 	AnjutaPlugin* plugin = ANJUTA_PLUGIN (factory);
-	VimEditor* vim = NULL;
+	VimEditor* editor = NULL;
 	GError *err = NULL;
-	vim = vim_editor_new (plugin, filename, uri);
+	editor = vim_editor_new (plugin, filename, uri);
 
-	return IANJUTA_EDITOR (vim);
+	return IANJUTA_EDITOR (editor);
 }
 
 static void
