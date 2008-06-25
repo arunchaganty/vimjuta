@@ -41,39 +41,61 @@ class DBusDaemon(dbus.service.Object):
             return 'ERROR'
     
     @dbus.service.method(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
-            in_signature='uu', out_signature='s')
-    def GetBufContents (self, start, end):
-        result = ''
-        try:
-            result = vim.current.buffer[start:end]
-            return result
-        except vim.error:
-            return 'ERROR'
-
-    @dbus.service.method(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
-            in_signature='', out_signature='s')
-    def GetBufContentsFull (self):
-        result = ''
-        try:
-            result = vim.current.buffer[:]
-            return result
-        except vim.error:
-            return 'ERROR'
-
-    @dbus.service.method(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             in_signature='', out_signature='s',
             sender_keyword='sender')
     def SayHello(self,sender):
         return "Hello! %s" % sender
 
+    # Signals. Follow Vim event name conventions
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='u')
+    def BufNewFile(self, bufno):
+        pass
+
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             signature='us')
-    def BufChanged(self, bufno, uri):
+    def BufRead(self, bufno, uri):
         pass
     
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
-            signature='s')
-    def BufSaved(self, uri):
+            signature='us')
+    def BufWrite(self, bufno, uri):
+        pass
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='us')
+    def BufAdd(self, bufno, uri):
+        pass
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='u')
+    def BufDelete(self, bufno):
+        pass
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='us')
+    def BufFilePre(self, bufno, uri):
+        pass
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='u')
+    def BufEnter(self, bufno):
+        pass
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='u')
+    def BufLeave(self, bufno):
+        pass
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='')
+    def VimLeave(self):
+        pass
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='u')
+    def MenuPopup(self, bufno):
         pass
 
 # Run the daemon
@@ -88,11 +110,8 @@ if __name__ == "__main__":
 
     DBusGMainLoop(set_as_default=True)
     bus = dbus.SessionBus()
-#    loop = MainLoop()
 
-    # Use an arbitrarily set variable g:anjuta to make the bus unique.
-    vim_anjuta = DBusDaemon (bus, DBUS_NAME_ANJUTA,'%s/daemon'%DBUS_PATH_VIM)
+    # TODO: Use an arbitrarily set variable g:anjuta to make the bus unique.
+    daemon = DBusDaemon (bus, DBUS_NAME_ANJUTA,'%s/daemon'%DBUS_PATH_VIM)
 
-#    threads_init()
-#    thread.start_new_thread(run, ())
 
