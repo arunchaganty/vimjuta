@@ -26,6 +26,8 @@
 #include <libanjuta/interfaces/ianjuta-file-savable.h>
 #include <libanjuta/anjuta-debug.h>
 #include "vim-editor.h"
+#include "vim-editor-priv.h"
+#include "vim-widget-priv.h"
 #include "vim-util.h"
 #include "vim-dbus.h"
 

@@ -25,6 +25,7 @@
 /* DBus Helper Functions */
 #include <libanjuta/anjuta-debug.h>
 #include "vim-dbus.h"
+#include "vim-widget-priv.h"
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>
 #include <string.h>

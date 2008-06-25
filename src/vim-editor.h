@@ -27,7 +27,6 @@
 
 #include <glib-object.h>
 #include <libanjuta/anjuta-plugin.h>
-#include "vim-widget.h"
 
 G_BEGIN_DECLS
 
@@ -52,15 +51,6 @@ struct _VimEditor
 	GObject parent;
 	VimEditorPrivate *priv;
 };
-
-struct _VimEditorPrivate
-{
-	gchar* uri;
-	gchar* filename;
-	gint buf_id;
-	VimWidget *widget; /* Note, this is a singleton */
-};
-
 
 GType vim_editor_get_type (void) G_GNUC_CONST;
 VimEditor* vim_editor_new (AnjutaPlugin *plugin, const gchar* uri, const gchar* filename); 

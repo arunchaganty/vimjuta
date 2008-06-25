@@ -22,8 +22,6 @@
 
 #include <glib-object.h>
 #include <gtk/gtk.h>
-#include <dbus/dbus-glib.h>
-#include <libanjuta/anjuta-plugin.h>
 
 G_BEGIN_DECLS
 
@@ -50,17 +48,6 @@ struct _VimWidget
 	GtkFrame parent_instance;
 	VimWidgetPrivate* priv;
 
-};
-
-struct _VimWidgetPrivate
-{
-	gint socket_id;
-	GtkSocket* socket;
-	DBusGConnection* conn;
-	DBusGProxy* dbus_proxy;
-	DBusGProxy* proxy;
-
-	GList* documents; /* Open documents */
 };
 
 GType vim_widget_get_type (void) G_GNUC_CONST;

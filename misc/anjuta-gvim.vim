@@ -32,24 +32,79 @@ function! AnjutaPos (token)
     endif
 endfunction
 
-function! AnjutaGetBufAll ()
-    
+function! AnjutaGetBuf (buffer,start, end)
+	if (type(a:start) == 1)
+		let l:startp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:start))
+	else
+		let l:startp = AnjutaByte2Pos(a:buffer, a:start)
+	endif
+	if (type(a:end) == 1)
+		let l:endp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:end))
+	else
+		let l:endp = AnjutaByte2Pos(a:buffer, a:end)
+	endif
+
+	let s = getpos("'s")
+	let e = getpos("'e")
+    call setpos("'s", l:startp)
+	call setpos("'e", l:endp)
+
+    let a = @z
+    's,'eyank z
+    let b = @z
+
+	try
+		call setpos("'s", s)
+	catch /^Vim\%((\a\+)\)\=:E20/
+	endtry
+	try
+		call setpos("'e", e)
+	catch /^Vim\%((\a\+)\)\=:E20/
+	endtry
+
+    return b
 endfunction
 
-function! AnjutaGetPos ()
-    
+function! AnjutaByte2Pos (buffer, byte)
+    let lineno = byte2line (a:byte)
+    return [a:buffer, lineno, a:byte - line2byte(lineno), 0,]
 endfunction
 
-function! AnjutaInsert (str, pos)
-    
+function! AnjutaInsert (buffer, str, pos)
+	if (type(a:pos) == 1)
+		let l:pos = AnjutaByte2Pos(a:buffer, AnjutaPos(a:pos))
+	else
+		let l:pos = AnjutaByte2Pos(a:buffer, a:pos)
+	endif
+    let a = @z
+    let @z = a:str 
+    call setpos('.', l:pos)
+    normal "zp
+    let @z = a
 endfunction
 
-function! AnjutaAppend (str, pos)
-    
-endfunction
+function! AnjutaErase (buffer, start, end)
+	if (type(a:start) == 1)
+		let l:startp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:start))
+	else
+		let l:startp = AnjutaByte2Pos(a:buffer, a:start)
+	endif
+	if (type(a:end) == 1)
+		let l:endp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:end))
+	else
+		let l:endp = AnjutaByte2Pos(a:buffer, a:end)
+	endif
 
-function! AnjutaErase (start, end)
-    
+    let pos1 = getpos("'s")
+    let pos2 = getpos("'e")
+
+    setpos ("'s", l:startp)
+	setpos ("'e", l:endp)
+
+    's,'edelete
+
+    setpos ("'s", pos1)
+    setpos ("'e", pos2)
 endfunction
 
 " }}}

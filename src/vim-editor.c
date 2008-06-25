@@ -36,6 +36,7 @@
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-file-savable.h>
 #include "vim-editor.h"
+#include "vim-editor-priv.h"
 #include "vim-widget.h"
 #include "vim-util.h"
 #include <string.h>

@@ -24,19 +24,23 @@
 
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include "vim-editor.h"
+#include "vim-editor-priv.h"
+#include "vim-widget-priv.h"
 #include "vim-dbus.h"
 
 static void idocument_begin_undo_action (IAnjutaDocument *idoc, GError **err)
 {
-	/* Support for undo blocks is hard */
+	/* FIXME: Support for undo blocks is hard. */
 }
 
+/* Hard to figure out where in the undo tree I am */
 static gboolean 
 idocument_can_redo (IAnjutaDocument *idoc, GError **err)
 {
 	return TRUE;
 }
 
+/* Hard to figure out where in the undo tree I am */
 static gboolean 
 idocument_can_undo (IAnjutaDocument *idoc, GError **err)
 {

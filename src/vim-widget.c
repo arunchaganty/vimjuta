@@ -24,6 +24,7 @@
 #include <libanjuta/anjuta-debug.h>
 #include <gtk/gtk.h>
 #include "vim-widget.h"
+#include "vim-widget-priv.h"
 #include "vim-dbus.h"
 
 #define VIM_WIDGET_PRIVATE(o)  (G_TYPE_INSTANCE_GET_PRIVATE ((o), VIM_TYPE_WIDGET, VimWidgetPrivate))

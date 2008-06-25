@@ -23,6 +23,8 @@
  */
 
 #include "vim-editor.h"
+#include "vim-editor-priv.h"
+#include "vim-widget-priv.h"
 #include "vim-test.h"
 #include "plugin.h"
 #include <libanjuta/interfaces/ianjuta-document-manager.h>

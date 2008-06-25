@@ -30,6 +30,8 @@
 #include <libanjuta/interfaces/ianjuta-editor.h>
 #include <libanjuta/interfaces/ianjuta-editor-multiple.h>
 #include "vim-editor.h"
+#include "vim-editor-priv.h"
+#include "vim-widget-priv.h"
 #include "vim-dbus.h"
 #include "vim-cell.h"
 
@@ -158,7 +160,8 @@ ieditor_get_text (IAnjutaEditor* ieditor,
 
 	g_assert (err == NULL);
 	// Create query string
-	query = g_strdup_printf ("AnjutaGetBuf(%d, %d)", 
+	query = g_strdup_printf ("AnjutaGetBuf(%d, %d, %d)", 
+			editor->priv->buf_id,
 			ianjuta_iterable_get_position (start,err), 
 			ianjuta_iterable_get_position (end,err));
 
@@ -173,11 +176,14 @@ static gchar*
 ieditor_get_text_all (IAnjutaEditor* ieditor, GError **err)
 {
 	VimEditor *editor = (VimEditor*) ieditor;
+	gchar* query = NULL;
 	gchar* reply = NULL;
 
 	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget),NULL);
 	g_assert (err == NULL);
-	reply = vim_dbus_get_buf_full (editor->priv->widget, err);
+	query = g_strdup_printf ("AnjutaGetBuf(%d, 0, '$')", 
+			editor->priv->buf_id);
+	reply = vim_dbus_query (editor->priv->widget, query, err);
 	
 	// TODO: Error Handling...
 
@@ -203,6 +209,7 @@ ieditor_get_position (IAnjutaEditor* ieditor, GError **err)
 	return IANJUTA_ITERABLE (cell);
 }
 
+/* Deprecated. Not supporting */
 static gint
 ieditor_get_offset (IAnjutaEditor* ieditor, GError **err)
 {
@@ -216,15 +223,17 @@ ieditor_get_lineno(IAnjutaEditor *ieditor, GError **err)
 	VimEditor *editor = (VimEditor*) ieditor;
 	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 0);
 	return vim_dbus_int_query (editor->priv->widget, "line ('.')", err);
-
-	return 0;
 }
 
 /* Return the length of the text in the buffer */
+/* FIXME: Returns the bytes in file. Doesn't match with the number of
+ * characters in a multibyte file */
 static gint 
 ieditor_get_length(IAnjutaEditor *ieditor, GError **err)
 {
-	return 0;
+	VimEditor *editor = (VimEditor*) ieditor;
+	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 0);
+	return vim_dbus_int_query (editor->priv->widget, "AnjutaPos('$')", err);
 }
 
 /* Return word on cursor position */
@@ -246,7 +255,7 @@ ieditor_insert(IAnjutaEditor *ieditor, IAnjutaIterable* icell,
 	gint position = ianjuta_iterable_get_position (icell, err);
 
 	g_assert (err == NULL);
-	query = g_strdup_printf ("AnjutaInsert ('%s',%d)", text, position);
+	query = g_strdup_printf ("AnjutaInsert ('%s',%d)", text, position-1); /* the default insert is infact an append */
 
 	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
 	g_free (query);
@@ -263,7 +272,7 @@ ieditor_append(IAnjutaEditor *ieditor, const gchar* text,
 	gchar* query = NULL;
 
 	g_assert (err == NULL);
-	query = g_strdup_printf ("AnjutaAppend ('%s')", text);
+	query = g_strdup_printf ("AnjutaInsert (%d,'%s', '$')", editor->priv->buf_id, text);
 
 	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
 	g_free (query);
@@ -316,6 +325,8 @@ ieditor_get_column(IAnjutaEditor *ieditor, GError **err)
 }
 
 /* Return TRUE if ieditor is in overwrite mode */
+/* FIXME: If currently editing, it's nearly impossible to get 
+ * write mode, as functions don't work... */
 static gboolean 
 ieditor_get_overwrite(IAnjutaEditor *ieditor, GError **err)
 {
@@ -324,10 +335,13 @@ ieditor_get_overwrite(IAnjutaEditor *ieditor, GError **err)
 
 
 /* Set the ieditor popup menu */
+/* FIXME: There is a function for this :completefunc ... Fetch data from the
+ * menu widget first... */
 static void 
 ieditor_set_popup_menu(IAnjutaEditor *ieditor, 
 								   GtkWidget* menu, GError **err)
 {
+	
 }
 
 /* Convert from position to line */
@@ -386,7 +400,8 @@ ieditor_get_line_end_position(IAnjutaEditor *ieditor,
 static IAnjutaIterable*
 ieditor_get_position_from_offset(IAnjutaEditor* ieditor, gint position, GError** err)
 {
-	return NULL;
+	VimEditor *editor = (VimEditor*) ieditor;
+	return IANJUTA_ITERABLE (vim_cell_new (editor, position));
 }
 
 static IAnjutaIterable*
