@@ -29,9 +29,10 @@
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
 #include <libanjuta/interfaces/ianjuta-editor-multiple.h>
+#include "vim-widget.h"
 #include "vim-editor.h"
-#include "vim-editor-priv.h"
 #include "vim-widget-priv.h"
+#include "vim-editor-priv.h"
 #include "vim-dbus.h"
 #include "vim-cell.h"
 
@@ -161,7 +162,7 @@ ieditor_get_text (IAnjutaEditor* ieditor,
 	g_assert (err == NULL);
 	// Create query string
 	query = g_strdup_printf ("AnjutaGetBuf(%d, %d, %d)", 
-			editor->priv->buf_id,
+			editor->priv->bufno,
 			ianjuta_iterable_get_position (start,err), 
 			ianjuta_iterable_get_position (end,err));
 
@@ -182,7 +183,7 @@ ieditor_get_text_all (IAnjutaEditor* ieditor, GError **err)
 	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget),NULL);
 	g_assert (err == NULL);
 	query = g_strdup_printf ("AnjutaGetBuf(%d, 0, '$')", 
-			editor->priv->buf_id);
+			editor->priv->bufno);
 	reply = vim_dbus_query (editor->priv->widget, query, err);
 	
 	// TODO: Error Handling...
@@ -272,7 +273,7 @@ ieditor_append(IAnjutaEditor *ieditor, const gchar* text,
 	gchar* query = NULL;
 
 	g_assert (err == NULL);
-	query = g_strdup_printf ("AnjutaInsert (%d,'%s', '$')", editor->priv->buf_id, text);
+	query = g_strdup_printf ("AnjutaInsert (%d,'%s', '$')", editor->priv->bufno, text);
 
 	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
 	g_free (query);
@@ -488,12 +489,13 @@ ieditor_iface_init (IAnjutaEditorIface *iface)
 
 /* IAnjutaEditorMultiple */
 
+/*
+ * Don't add to the document list yet. Wait till Vim loads it: vim_signal_buf_read_cb
+ */
 static void
 imultiple_add_document (IAnjutaEditorMultiple *obj, IAnjutaDocument *document, GError **err)
 {
 	VimEditor* editor = VIM_EDITOR (obj);
-	editor->priv->widget->priv->documents = g_list_append (editor->priv->widget->priv->documents, document);
-
 	ianjuta_file_open (IANJUTA_FILE (editor), ianjuta_file_get_uri(IANJUTA_FILE (editor), NULL), NULL);
 }
 
@@ -501,15 +503,15 @@ static IAnjutaDocument*
 imultiple_get_current_document (IAnjutaEditorMultiple *obj, GError **err)
 {
 	VimEditor* editor = VIM_EDITOR (obj);
-	gint buf_id;
+	gint bufno;
 	GList* node = editor->priv->widget->priv->documents; 
 	
-	buf_id = vim_dbus_int_query (editor->priv->widget, "bufnr('%')", err);
+	bufno = vim_dbus_int_query (editor->priv->widget, "bufnr('%')", err);
 
 	for (;node != NULL; node = g_list_next(node))
 	{
 		VimEditor *editor_ = VIM_EDITOR (node->data);
-		if (editor_->priv->buf_id == buf_id)
+		if (editor_->priv->bufno == bufno)
 			return IANJUTA_DOCUMENT(editor_);
 	}
 
@@ -556,10 +558,10 @@ static void
 imultiple_set_current_document (IAnjutaEditorMultiple *obj, IAnjutaDocument *document, GError **err)
 {
 	VimEditor* editor = VIM_EDITOR (obj);
-	gint buf_id = VIM_EDITOR (document)->priv->buf_id;
+	gint bufno = VIM_EDITOR(document)->priv->bufno;
 	gchar* cmd = NULL;
 	
-	cmd = g_strdup_printf (":buffer %d", buf_id);
+	cmd = g_strdup_printf (":buffer %d", bufno);
 	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
 	g_free (cmd);
 }
@@ -577,3 +579,89 @@ imultiple_iface_init (IAnjutaEditorMultipleIface *iface)
 	iface->remove_document = imultiple_remove_document;
 	iface->set_current_document = imultiple_set_current_document;
 }
+
+/* Signal Callbacks */
+void 
+vim_signal_buf_new_file_cb (DBusGProxy *proxy, const guint bufno, 
+		VimWidget *widget)
+{
+	VimEditor* editor = vim_editor_new (NULL, "", "");
+	vim_widget_add_document (widget, editor, NULL);
+}
+
+void 
+vim_signal_buf_read_cb (DBusGProxy *proxy, const guint bufno, 
+		const gchar* filename, VimWidget *widget)
+{
+	
+	VimEditor* editor = vim_widget_get_document_bufno (widget, bufno, NULL);
+	if (!editor)
+		editor = vim_editor_new (NULL, "", filename);
+	vim_widget_add_document (widget, editor, NULL);
+}
+
+void 
+vim_signal_buf_write_cb (DBusGProxy *proxy, const guint bufno, 
+		const gchar* filename, VimWidget *widget)
+{
+	/* Nothing needs to be done here */
+}
+
+void 
+vim_signal_buf_add_cb (DBusGProxy *proxy, const guint bufno, 
+		const gchar* filename, VimWidget *widget)
+{
+	VimEditor *editor = vim_editor_new (NULL,  "", filename);
+	editor->priv->bufno = bufno;
+	vim_widget_add_document (widget, editor, NULL);
+}
+
+void 
+vim_signal_buf_delete_cb (DBusGProxy *proxy, const guint bufno, 
+		VimWidget *widget)
+{
+	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
+	vim_widget_remove_document (widget, editor, NULL);
+}
+
+/* Filename may have changed */
+void 
+vim_signal_buf_file_post_cb (DBusGProxy *proxy, const guint bufno, 
+		const gchar* filename, VimWidget *widget)
+{
+	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
+	if (strcmp (editor->priv->filename, filename) != 0)
+	{
+		g_free (editor->priv->filename);
+		editor->priv->filename = g_strdup (filename);
+	}
+}
+
+void 
+vim_signal_buf_enter_cb (DBusGProxy *proxy, const guint bufno, 
+		VimWidget *widget)
+{
+	/* Do nothing */
+}
+
+void 
+vim_signal_buf_leave_cb (DBusGProxy *proxy, const guint bufno, 
+		VimWidget *widget)
+{
+	/* Do nothing */
+}
+
+void 
+vim_signal_vim_leave_cb (DBusGProxy *proxy, VimWidget *widget)
+{
+	/* Do nothing */
+	g_free (widget);
+}
+
+void 
+vim_signal_menu_popup_cb (DBusGProxy *proxy, const guint bufno, 
+		VimWidget *widget)
+{
+	/* Do nothing, yet */
+}
+

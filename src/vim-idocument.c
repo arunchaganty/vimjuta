@@ -23,9 +23,10 @@
  */
 
 #include <libanjuta/interfaces/ianjuta-document.h>
+#include "vim-widget.h"
 #include "vim-editor.h"
-#include "vim-editor-priv.h"
 #include "vim-widget-priv.h"
+#include "vim-editor-priv.h"
 #include "vim-dbus.h"
 
 static void idocument_begin_undo_action (IAnjutaDocument *idoc, GError **err)

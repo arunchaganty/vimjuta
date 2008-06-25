@@ -23,8 +23,10 @@
  */
 
 #include <libanjuta/interfaces/ianjuta-iterable.h>
-#include "vim-editor-priv.h"
+#include "vim-widget.h"
+#include "vim-editor.h"
 #include "vim-widget-priv.h"
+#include "vim-editor-priv.h"
 #include "vim-cell.h"
 #include "vim-dbus.h"
 

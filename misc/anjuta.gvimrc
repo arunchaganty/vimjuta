@@ -22,7 +22,7 @@ augroup Anjuta
 
     au BufAdd       *   py  daemon.BufAdd (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"))
     au BufDelete    *   py  daemon.BufDelete (vim.eval("bufnr('%')"))
-    au BufFilePre   *   py  daemon.BufFilePre (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"))
+    au BufFilePre   *   py  daemon.BufFilePost (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"))
 
     au BufEnter     *   py  daemon.BufEnter (vim.eval("bufnr('%')"))
     au BufLeave     *   py  daemon.BufLeave (vim.eval("bufnr('%')"))

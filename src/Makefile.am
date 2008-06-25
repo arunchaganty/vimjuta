@@ -56,8 +56,8 @@ libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
 	vim-dbus.h  vim-cell.h \
 	vim-cell.c\
 	vim-test.c\
-	vim-util.c  vim-widget.h \
-	vim-widget.c
+	vim-util.c \
+	vim-widget.c vim-widget.h 
 
 
 # Plugin dependencies

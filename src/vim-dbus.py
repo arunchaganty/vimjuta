@@ -55,17 +55,17 @@ class DBusDaemon(dbus.service.Object):
 
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             signature='us')
-    def BufRead(self, bufno, uri):
+    def BufRead(self, bufno, filename):
         pass
     
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             signature='us')
-    def BufWrite(self, bufno, uri):
+    def BufWrite(self, bufno, filename):
         pass
 
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             signature='us')
-    def BufAdd(self, bufno, uri):
+    def BufAdd(self, bufno, filename):
         pass
 
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
@@ -75,7 +75,7 @@ class DBusDaemon(dbus.service.Object):
 
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             signature='us')
-    def BufFilePre(self, bufno, uri):
+    def BufFilePost(self, bufno, filename):
         pass
 
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,

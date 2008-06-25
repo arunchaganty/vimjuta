@@ -27,6 +27,7 @@
 
 #include <glib-object.h>
 #include <libanjuta/anjuta-plugin.h>
+#include "vim-widget.h"
 
 G_BEGIN_DECLS
 

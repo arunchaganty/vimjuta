@@ -22,9 +22,10 @@
  * 	Boston, MA  02110-1301, USA.
  */
 
+#include "vim-widget.h"
 #include "vim-editor.h"
-#include "vim-editor-priv.h"
 #include "vim-widget-priv.h"
+#include "vim-editor-priv.h"
 #include "vim-test.h"
 #include "plugin.h"
 #include <libanjuta/interfaces/ianjuta-document-manager.h>

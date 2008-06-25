@@ -35,9 +35,10 @@
 #include <libanjuta/interfaces/ianjuta-editor-multiple.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-file-savable.h>
-#include "vim-editor.h"
-#include "vim-editor-priv.h"
 #include "vim-widget.h"
+#include "vim-editor.h"
+#include "vim-widget-priv.h"
+#include "vim-editor-priv.h"
 #include "vim-util.h"
 #include <string.h>
 
@@ -63,7 +64,6 @@ vim_editor_new (AnjutaPlugin *plugin, const gchar* uri, const gchar* filename)
 
 	editor = VIM_EDITOR (g_object_new(VIM_TYPE_EDITOR, NULL));
 
-	/* TODO: Handle filenames/uri's properly */
 	if (strcmp(uri, "") != 0) editor->priv->uri = convert2uri(uri, "file");
 	else if (strcmp(filename, "") != 0) editor->priv->uri = convert2uri(filename, "file");
 	else editor->priv->uri = NULL;

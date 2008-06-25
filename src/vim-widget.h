@@ -22,6 +22,7 @@
 
 #include <glib-object.h>
 #include <gtk/gtk.h>
+#include "vim-editor.h"
 
 G_BEGIN_DECLS
 
@@ -47,10 +48,13 @@ struct _VimWidget
 {
 	GtkFrame parent_instance;
 	VimWidgetPrivate* priv;
-
 };
 
 GType vim_widget_get_type (void) G_GNUC_CONST;
+void vim_widget_add_document (VimWidget *widget, VimEditor* editor, GError **err);
+VimEditor* vim_widget_get_document_bufno (VimWidget *widget, const guint bufno, GError **err);
+VimEditor* vim_widget_get_document_filename (VimWidget *widget, const gchar* filename, GError **err);
+VimEditor* vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err);
 
 G_END_DECLS
 

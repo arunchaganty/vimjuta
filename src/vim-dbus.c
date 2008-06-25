@@ -25,10 +25,32 @@
 /* DBus Helper Functions */
 #include <libanjuta/anjuta-debug.h>
 #include "vim-dbus.h"
-#include "vim-widget-priv.h"
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>
 #include <string.h>
+#include "vim-widget.h"
+#include "vim-widget-priv.h"
+
+extern void vim_signal_buf_new_file_cb (DBusGProxy *proxy, const guint, 
+		VimWidget *widget);
+extern void vim_signal_buf_read_cb (DBusGProxy *proxy, const guint, 
+		const gchar* filename, VimWidget *widget);
+extern void vim_signal_buf_write_cb (DBusGProxy *proxy, const guint, 
+		const gchar* filename, VimWidget *widget);
+extern void vim_signal_buf_add_cb (DBusGProxy *proxy, const guint, 
+		const gchar* filename, VimWidget *widget);
+extern void vim_signal_buf_delete_cb (DBusGProxy *proxy, const guint, 
+		VimWidget *widget);
+extern void vim_signal_buf_file_post_cb (DBusGProxy *proxy, const guint, 
+		const gchar* filename, VimWidget *widget);
+extern void vim_signal_buf_enter_cb (DBusGProxy *proxy, const guint, 
+		VimWidget *widget);
+extern void vim_signal_buf_leave_cb (DBusGProxy *proxy, const guint, 
+		VimWidget *widget);
+extern void vim_signal_vim_leave_cb (DBusGProxy *proxy, VimWidget *widget);
+extern void vim_signal_menu_popup_cb (DBusGProxy *proxy, const guint, 
+		VimWidget *widget);
+
 
 /* An implementation to queue up some commands to be run at later time  Mainly
  * used before DBus initializes*/
@@ -92,10 +114,106 @@ vim_dbus_connect_cb (DBusGProxy *proxy,
 				DBUS_IFACE_EDITOR_REMOTE);
 
 		// TODO: hook up signals
-		
-		// Execute all pending commands
-		vim_queue_exec (widget);
+		/* Register signals */
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"BufNewFile",
+									G_TYPE_UINT,
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"BufRead",
+									G_TYPE_UINT,
+									G_TYPE_STRING,
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"BufWrite",
+									G_TYPE_UINT,
+									G_TYPE_STRING,
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"BufAdd",
+									G_TYPE_UINT,
+									G_TYPE_STRING,
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"BufDelete",
+									G_TYPE_UINT,
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"BufFilePost",
+									G_TYPE_UINT,
+									G_TYPE_STRING,
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"BufEnter",
+									G_TYPE_UINT,
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"BufLeave",
+									G_TYPE_UINT,
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"VimLeave",
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"MenuPopup",
+									G_TYPE_UINT,
+									G_TYPE_INVALID);
 
+
+		/* Connect Signals */
+		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+									"BufNewFile",
+									G_CALLBACK(vim_signal_buf_new_file_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+									"BufRead",
+									G_CALLBACK(vim_signal_buf_read_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+									"BufWrite",
+									G_CALLBACK(vim_signal_buf_write_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+									"BufAdd",
+									G_CALLBACK(vim_signal_buf_add_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+									"BufDelete",
+									G_CALLBACK(vim_signal_buf_delete_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+									"BufFilePost",
+									G_CALLBACK(vim_signal_buf_file_post_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+									"BufEnter",
+									G_CALLBACK(vim_signal_buf_enter_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+									"BufLeave",
+									G_CALLBACK(vim_signal_buf_leave_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+									"VimLeave",
+									G_CALLBACK(vim_signal_vim_leave_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+									"MenuPopup",
+									G_CALLBACK(vim_signal_menu_popup_cb),
+									widget,
+									NULL);
+
+		/* Execute all pending commands */
+		vim_queue_exec (widget);
 	 }
 }
 
@@ -109,7 +227,7 @@ vim_dbus_init (VimWidget *widget, GError **error)
 	if (err)
 	{
 		DEBUG_PRINT ("Error connecting to DBus: %s\n", err);
-		if (error) *error = err; // Propogate error
+		if (error) *error = err; /* Propogate error */
 		else g_error_free (err);
 		return FALSE;
 	}
@@ -252,61 +370,5 @@ vim_dbus_exec_without_reply (VimWidget* widget, gchar* cmd, GError **error)
 				"ExecuteCmd",
 				G_TYPE_STRING, cmd,
 				G_TYPE_INVALID);
-}
-
-gchar*
-vim_dbus_get_buf (VimWidget *widget, guint start, guint end, GError **error) 
-{
-	gchar *reply;
-	GError *err = NULL;
-
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(widget), NULL);
-	dbus_g_proxy_call (widget->priv->proxy,
-			"GetBufContents", &err,
-			G_TYPE_UINT, start,
-			G_TYPE_UINT, end,
-			G_TYPE_INVALID,
-			G_TYPE_STRING, &reply,
-			G_TYPE_INVALID);
-
-	if (err)
-	{
-		if ( err->domain == DBUS_GERROR && err->code == DBUS_GERROR_REMOTE_EXCEPTION)
-			DEBUG_PRINT ("Caught a remote exception \n");
-		else if (err)
-			DEBUG_PRINT ("Error calling GetBufContents: %s\n", err->message);
-		if (error) *error = err;
-		else g_error_free (err);
-		return NULL;
-	}
-		
-	return reply;
-}
-
-gchar* 
-vim_dbus_get_buf_full (VimWidget *widget, GError **error) 
-{
-	gchar *reply;
-	GError *err = NULL;
-
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(widget), NULL);
-	dbus_g_proxy_call (widget->priv->proxy,
-			"GetBufContentsFull", &err,
-			G_TYPE_INVALID,
-			G_TYPE_STRING, &reply,
-			G_TYPE_INVALID);
-
-	if (err)
-	{
-		if ( err->domain == DBUS_GERROR && err->code == DBUS_GERROR_REMOTE_EXCEPTION)
-			DEBUG_PRINT ("Caught a remote exception \n");
-		else if (err)
-			DEBUG_PRINT ("Error calling GetBufContentsFull: %s\n", err->message);
-		if (error) *error = err;
-		else g_error_free (err);
-		return NULL;
-	}
-	
-	return reply;
 }
 

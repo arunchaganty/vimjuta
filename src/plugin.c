@@ -25,6 +25,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-factory.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
 
+#include "vim-widget.h"
 #include "vim-editor.h"
 #include "vim-test.h"
 #include "plugin.h"

@@ -25,9 +25,10 @@
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-file-savable.h>
 #include <libanjuta/anjuta-debug.h>
+#include "vim-widget.h"
 #include "vim-editor.h"
-#include "vim-editor-priv.h"
 #include "vim-widget-priv.h"
+#include "vim-editor-priv.h"
 #include "vim-util.h"
 #include "vim-dbus.h"
 
@@ -47,7 +48,6 @@ ifile_open (IAnjutaFile *obj, const gchar *uri, GError **err) {
 	g_message ("Executing: %s", cmd);
 
 	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
-
 }
 
 void 

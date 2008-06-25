@@ -24,7 +24,9 @@
 #include <libanjuta/anjuta-debug.h>
 #include <gtk/gtk.h>
 #include "vim-widget.h"
+#include "vim-editor.h"
 #include "vim-widget-priv.h"
+#include "vim-editor-priv.h"
 #include "vim-dbus.h"
 
 #define VIM_WIDGET_PRIVATE(o)  (G_TYPE_INSTANCE_GET_PRIVATE ((o), VIM_TYPE_WIDGET, VimWidgetPrivate))
@@ -36,6 +38,59 @@
  */
 
 static GObjectClass* parent_class;
+
+void
+vim_widget_add_document (VimWidget *widget, VimEditor *editor, GError **err)
+{
+	if (!g_list_find (widget->priv->documents, editor))
+		widget->priv->documents = g_list_append (widget->priv->documents, editor);
+}
+
+void
+vim_widget_remove_document (VimWidget *widget, VimEditor *editor, GError **err)
+{
+	if (!g_list_find (widget->priv->documents, editor))
+		widget->priv->documents = g_list_remove (widget->priv->documents, editor);
+}
+
+VimEditor*
+vim_widget_get_document_bufno (VimWidget *widget, const guint bufno, GError **err)
+{
+	GList* node = NULL;
+	for (node = widget->priv->documents; node != NULL; node = g_list_next (node))
+	{
+		VimEditor *editor = VIM_EDITOR(node->data);
+		if (editor->priv->bufno = bufno)
+			return editor;
+	}
+	return NULL;
+}
+
+VimEditor*
+vim_widget_get_document_filename (VimWidget *widget, const gchar* filename, GError **err)
+{
+	GList* node = NULL;
+	for (node = widget->priv->documents; node != NULL; node = g_list_next (node))
+	{
+		VimEditor *editor = VIM_EDITOR(node->data);
+		if (strcmp (editor->priv->filename, filename) == 0)
+			return editor;
+	}
+	return NULL;
+}
+
+VimEditor*
+vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err)
+{
+	GList* node = NULL;
+	for (node = widget->priv->documents; node != NULL; node = g_list_next (node))
+	{
+		VimEditor *editor = VIM_EDITOR(node->data);
+		if (strcmp (editor->priv->uri, uri) == 0)
+			return editor;
+	}
+	return NULL;
+}
 
 static void 
 vim_widget_connect_plug (VimWidget *widget, GParamSpec *param) 
