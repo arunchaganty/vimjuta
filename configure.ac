@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl Created by Anjuta application wizard.
 
-AC_INIT(anjuta_gvim, 0.1)
+AC_INIT(anjuta-gvim, 0.1)
 
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 AM_CONFIG_HEADER(config.h)
@@ -18,7 +18,7 @@ AC_HEADER_STDC
 dnl ***************************************************************************
 dnl Internatinalization
 dnl ***************************************************************************
-GETTEXT_PACKAGE=anjuta_gvim
+GETTEXT_PACKAGE=anjuta-gvim
 AC_SUBST(GETTEXT_PACKAGE)
 AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [GETTEXT package name])
 AM_GLIB_GNU_GETTEXT

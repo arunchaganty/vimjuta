@@ -73,12 +73,15 @@ convert2filename (const gchar* uri) {
 	gchar **list;
 
 	tmp = g_uri_parse_scheme (uri);
-	if (strcmp (tmp, "file") == 0)
+	if (!tmp)
+		tmp = g_strdup (uri);
+	else if (strcmp (tmp, "file") == 0)
 	{
 		tmp = str_substr (uri, 7, strlen (uri)); 
 	}
 	else
-		tmp = g_strdup (uri);
+		/* Throw an error ror something */
+		tmp = NULL;
 	return tmp;
 }
 

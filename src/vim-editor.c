@@ -42,7 +42,7 @@
 #include "vim-util.h"
 #include <string.h>
 
-#define GLADE_FILE ANJUTA_DATA_DIR"/glade/anjuta_gvim.glade"
+#define GLADE_FILE ANJUTA_DATA_DIR"/glade/anjuta-gvim.glade"
 
 extern void ieditor_iface_init (IAnjutaEditorIface *iface);
 extern void imultiple_iface_init (IAnjutaEditorIface *iface);
@@ -58,24 +58,34 @@ VimEditor*
 vim_editor_new (AnjutaPlugin *plugin, const gchar* uri, const gchar* filename)
 {
 	VimEditor *editor;
+	VimEditor *editor_;
 	GError *err = NULL;
 	
 	DEBUG_PRINT ("VimPlugin: Creating new editor ...");
 
+
 	editor = VIM_EDITOR (g_object_new(VIM_TYPE_EDITOR, NULL));
+	
+	/* Make sure that editors aren't repeated */
+	if (editor->priv->widget &&
+		((editor_ = vim_widget_get_document_filename (editor->priv->widget, filename, NULL)) ||
+		(editor_ = vim_widget_get_document_uri (editor->priv->widget, uri, NULL)))
+		)
+	{
+		return editor_;
+	}
 
 	if (strcmp(uri, "") != 0) editor->priv->uri = convert2uri(uri, "file");
 	else if (strcmp(filename, "") != 0) editor->priv->uri = convert2uri(filename, "file");
-	else editor->priv->uri = NULL;
+	else editor->priv->uri = g_strdup_printf("");
 
 	if (strcmp(filename, "") != 0) editor->priv->filename = convert2filename(filename);
 	else if (strcmp(filename, "") != 0) editor->priv->filename = convert2filename(filename);
-	else editor->priv->filename = NULL;
+	else editor->priv->filename = g_strdup_printf("");
 
 	if (filename) DEBUG_PRINT ("URI:%s\n FILENAME:%s\n", editor->priv->uri, editor->priv->filename);
 
-	/* Open in Vim. And create a buf id */
-
+	/* Add to the documents */
 	return editor;
 }
 

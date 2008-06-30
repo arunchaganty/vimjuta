@@ -1,4 +1,4 @@
 # List of source files containing translatable strings.
 
 src/plugin.c
-src/anjuta_gvim.plugin.in
+src/anjuta-gvim.plugin.in

@@ -79,8 +79,8 @@ class DBusDaemon(dbus.service.Object):
         pass
 
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
-            signature='u')
-    def BufEnter(self, bufno):
+            signature='us')
+    def BufEnter(self, bufno, filename):
         pass
 
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,

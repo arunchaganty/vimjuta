@@ -109,4 +109,67 @@ endfunction
 
 " }}}
 "=============================================================================
+"
+" Autocmd Helpers
+"=============================================================================
+
+function! AnjutaSignalBufNewFile()
+	py  daemon.BufNewFile (vim.eval("bufnr('%')"));
+endfunction
+
+function! AnjutaSignalBufRead()
+	if expand('%:p') == ""
+		py  daemon.BufRead (vim.eval("bufnr('%')"), "");
+	else
+		py  daemon.BufRead (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"));
+	endif
+endfunction
+
+function! AnjutaSignalWrite()
+	if expand('%:p') == ""
+		py  daemon.BufWrite (vim.eval("bufnr('%')"), "");
+	else
+		py  daemon.BufWrite (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"));
+	endif
+endfunction
+
+function! AnjutaSignalBufAdd()
+	if expand('%:p') == ""
+		py  daemon.BufAdd (vim.eval("bufnr('%')"), "");
+	else
+		py  daemon.BufAdd (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"));
+	endif
+endfunction
+
+function! AnjutaSignalBufDelete()
+	py  daemon.BufDelete (vim.eval("bufnr('%')"));
+endfunction
+
+function! AnjutaSignalBufFilePost()
+	if expand('%:p') == ""
+		py  daemon.BufFilePost (vim.eval("bufnr('%')"), "");
+	else
+		py  daemon.BufFilePost (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"));
+	endif
+endfunction
+
+function! AnjutaSignalBufEnter()
+	if expand('%:p') == ""
+		py  daemon.BufEnter (vim.eval("bufnr('%')"), "");
+	else
+		py  daemon.BufEnter (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"));
+	endif
+endfunction
+
+function! AnjutaSignalBufLeave()
+	py  daemon.BufLeave (vim.eval("bufnr('%')"));
+endfunction
+
+function! AnjutaSignalVimLeave()
+	py  daemon.VimLeave ();
+endfunction
+
+function! AnjutaSignalMenuPopup()
+	py  daemon.MenuPopup (vim.eval("bufnr('%')"));
+endfunction
 

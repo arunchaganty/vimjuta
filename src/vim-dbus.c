@@ -25,6 +25,7 @@
 /* DBus Helper Functions */
 #include <libanjuta/anjuta-debug.h>
 #include "vim-dbus.h"
+#include "vim-signal.h"
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>
 #include <string.h>
@@ -50,7 +51,13 @@ extern void vim_signal_buf_leave_cb (DBusGProxy *proxy, const guint,
 extern void vim_signal_vim_leave_cb (DBusGProxy *proxy, VimWidget *widget);
 extern void vim_signal_menu_popup_cb (DBusGProxy *proxy, const guint, 
 		VimWidget *widget);
-
+/*
+void vim_signal_buf_add_cb (DBusGProxy *proxy, const guint bufno, 
+		const gchar* filename, VimWidget *widget)
+{
+	g_message ("f00 %d %s\n", bufno, filename);
+}
+*/
 
 /* An implementation to queue up some commands to be run at later time  Mainly
  * used before DBus initializes*/
@@ -113,7 +120,21 @@ vim_dbus_connect_cb (DBusGProxy *proxy,
 				DBUS_PATH_VIM,
 				DBUS_IFACE_EDITOR_REMOTE);
 
+		g_print ("proxy: \n\t%s \n\t%s \n\t%s\n", 
+				dbus_g_proxy_get_bus_name(widget->priv->proxy),
+				dbus_g_proxy_get_path(widget->priv->proxy),
+				dbus_g_proxy_get_interface(widget->priv->proxy)
+				);
+
 		// TODO: hook up signals
+		/* Register Marshallers */
+		dbus_g_object_register_marshaller (g_cclosure_user_marshal_VOID__UINT_STRING, 
+											G_TYPE_NONE,
+											G_TYPE_UINT, 
+											G_TYPE_STRING,
+											G_TYPE_INVALID); 
+
+
 		/* Register signals */
 		dbus_g_proxy_add_signal (widget->priv->proxy,
 									"BufNewFile",
@@ -146,6 +167,7 @@ vim_dbus_connect_cb (DBusGProxy *proxy,
 		dbus_g_proxy_add_signal (widget->priv->proxy,
 									"BufEnter",
 									G_TYPE_UINT,
+									G_TYPE_STRING,
 									G_TYPE_INVALID);
 		dbus_g_proxy_add_signal (widget->priv->proxy,
 									"BufLeave",
@@ -161,52 +183,52 @@ vim_dbus_connect_cb (DBusGProxy *proxy,
 
 
 		/* Connect Signals */
-		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"BufNewFile",
 									G_CALLBACK(vim_signal_buf_new_file_cb),
 									widget,
 									NULL);
-		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"BufRead",
 									G_CALLBACK(vim_signal_buf_read_cb),
 									widget,
 									NULL);
-		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"BufWrite",
 									G_CALLBACK(vim_signal_buf_write_cb),
 									widget,
 									NULL);
-		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"BufAdd",
 									G_CALLBACK(vim_signal_buf_add_cb),
 									widget,
 									NULL);
-		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"BufDelete",
 									G_CALLBACK(vim_signal_buf_delete_cb),
 									widget,
 									NULL);
-		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"BufFilePost",
 									G_CALLBACK(vim_signal_buf_file_post_cb),
 									widget,
 									NULL);
-		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"BufEnter",
 									G_CALLBACK(vim_signal_buf_enter_cb),
 									widget,
 									NULL);
-		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"BufLeave",
 									G_CALLBACK(vim_signal_buf_leave_cb),
 									widget,
 									NULL);
-		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"VimLeave",
 									G_CALLBACK(vim_signal_vim_leave_cb),
 									widget,
 									NULL);
-		dbus_g_proxy_connect_signal (widget->priv->dbus_proxy,
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"MenuPopup",
 									G_CALLBACK(vim_signal_menu_popup_cb),
 									widget,

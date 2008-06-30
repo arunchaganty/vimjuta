@@ -16,19 +16,19 @@ source ~/Projects/anjuta-gvim/misc/anjuta-gvim.vim
 " Setup up autocommands to fire DBus signals
 augroup Anjuta
     au!
-    au BufNewFile   *   py  daemon.BufNewFile (vim.eval("expand('%:p')")  
-    au BufRead      *   py  daemon.BufRead (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"))  
-    au BufWrite     *   py  daemon.BufWrite (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"))
+    au BufNewFile   *   if &buftype == ""|call AnjutaSignalBufNewFile()|endif 
+    au BufRead      *   if &buftype == ""|call AnjutaSignalBufRead()|endif 
+    au BufWrite     *   if &buftype == ""|call AnjutaSignalBufWrite()|endif
 
-    au BufAdd       *   py  daemon.BufAdd (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"))
-    au BufDelete    *   py  daemon.BufDelete (vim.eval("bufnr('%')"))
-    au BufFilePre   *   py  daemon.BufFilePost (vim.eval("bufnr('%')"), vim.eval("expand('%:p')"))
+    au BufAdd       *   if &buftype == ""|call AnjutaSignalBufAdd()|endif
+    au BufDelete    *   if &buftype == ""|call AnjutaSignalBufDelete()|endif
+    au BufFilePre   *   if &buftype == ""|call AnjutaSignalBufFilePost()|endif
 
-    au BufEnter     *   py  daemon.BufEnter (vim.eval("bufnr('%')"))
-    au BufLeave     *   py  daemon.BufLeave (vim.eval("bufnr('%')"))
+    au BufEnter     *   if &buftype == ""|call AnjutaSignalBufEnter()|endif
+    au BufLeave     *   if &buftype == ""|call AnjutaSignalBufLeave()|endif
 
-    au VimLeave     *   py  daemon.VimLeave ()
+    au VimLeave     *   if &buftype == ""|call AnjutaSignalVimLeave()|endif
 
-    au MenuPopup    *   py  daemon.MenuPopup (vim.eval("bufnr('%')"))
+    au MenuPopup    *   if &buftype == ""|call AnjutaSignalMenuPopup()|endif 
 augroup END
 
