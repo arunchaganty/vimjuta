@@ -55,8 +55,7 @@ void vim_test_begin (GtkAction *action, VimPlugin *plugin)
 
 	g_print ("VimEditor: %d\n", vim);
 	g_print ("socket: %d\n", widget->priv->socket_id);
-	g_print ("uri: %s\n", vim->priv->uri);
-	g_print ("filename: %s\n", vim->priv->filename);
+	g_print ("filename: %s\n", g_file_get_path(vim->priv->file));
 	g_print ("proxy: \n\t%s \n\t%s \n\t%s\n", 
 			dbus_g_proxy_get_bus_name(widget->priv->proxy),
 			dbus_g_proxy_get_path(widget->priv->proxy),

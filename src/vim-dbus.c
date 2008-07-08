@@ -51,13 +51,6 @@ extern void vim_signal_buf_leave_cb (DBusGProxy *proxy, const guint,
 extern void vim_signal_vim_leave_cb (DBusGProxy *proxy, VimWidget *widget);
 extern void vim_signal_menu_popup_cb (DBusGProxy *proxy, const guint, 
 		VimWidget *widget);
-/*
-void vim_signal_buf_add_cb (DBusGProxy *proxy, const guint bufno, 
-		const gchar* filename, VimWidget *widget)
-{
-	g_message ("f00 %d %s\n", bufno, filename);
-}
-*/
 
 /* An implementation to queue up some commands to be run at later time  Mainly
  * used before DBus initializes*/
@@ -77,7 +70,7 @@ static GList* cmd_list = NULL;
 static void
 vim_queue_add (VimWidget* widget, const gchar* cmd)
 {
-	cmd_list = g_list_append (cmd_list, (gpointer) cmd);
+	cmd_list = g_list_append (cmd_list, g_strdup (cmd));
 }
 
 /**
@@ -94,10 +87,9 @@ vim_queue_exec (VimWidget* widget)
 {
 	GList* node;
 	for (node=cmd_list; node != NULL; node = g_list_next (node))
-	{
 		vim_dbus_exec_without_reply (widget, (gchar*) node->data, NULL);
-		cmd_list = g_list_remove (cmd_list, (const gpointer) node->data);
-	}
+	g_list_foreach (cmd_list, (GFunc)g_free, NULL);
+	g_list_free (cmd_list);
 }
 
 static void

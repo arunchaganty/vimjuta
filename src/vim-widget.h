@@ -52,7 +52,11 @@ struct _VimWidget
 
 GType vim_widget_get_type (void) G_GNUC_CONST;
 void vim_widget_add_document (VimWidget *widget, VimEditor* editor, GError **err);
+void vim_widget_add_document_complete (VimWidget *widget, VimEditor *editor);
+void vim_widget_remove_document (VimWidget *widget, VimEditor* editor, GError **err);
+void vim_widget_remove_document_complete (VimWidget *widget, VimEditor *editor);
 VimEditor* vim_widget_get_document_bufno (VimWidget *widget, const guint bufno, GError **err);
+VimEditor* vim_widget_get_document_file (VimWidget *widget, GFile* file, GError **err);
 VimEditor* vim_widget_get_document_filename (VimWidget *widget, const gchar* filename, GError **err);
 VimEditor* vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err);
 

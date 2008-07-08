@@ -26,6 +26,7 @@
 #define _VIM_EDITOR_H_
 
 #include <glib-object.h>
+#include <gio/gio.h>
 #include <libanjuta/anjuta-plugin.h>
 #include "vim-widget.h"
 
@@ -54,7 +55,7 @@ struct _VimEditor
 };
 
 GType vim_editor_get_type (void) G_GNUC_CONST;
-VimEditor* vim_editor_new (AnjutaPlugin *plugin, const gchar* uri, const gchar* filename); 
+VimEditor* vim_editor_new (AnjutaPlugin *plugin, GFile* file); 
 
 G_END_DECLS
 

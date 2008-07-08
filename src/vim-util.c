@@ -70,7 +70,6 @@ convert2uri (const gchar* file, const gchar* schema) {
 gchar*
 convert2filename (const gchar* uri) {
 	gchar *tmp;
-	gchar **list;
 
 	tmp = g_uri_parse_scheme (uri);
 	if (!tmp)

@@ -494,7 +494,7 @@ static IAnjutaEditorMaster*
 imultiple_get_master (IAnjutaEditorMultiple *obj, GError **err)
 {
 	VimEditor* editor = VIM_EDITOR (obj);
-	return IANJUTA_EDITOR_MASTER (editor->priv->widget);
+	return IANJUTA_EDITOR_MASTER (g_object_ref(editor->priv->widget));
 }
 
 void 

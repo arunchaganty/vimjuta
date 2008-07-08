@@ -29,6 +29,7 @@
  *
  */
 
+#include <gio/gio.h>
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
@@ -39,7 +40,6 @@
 #include "vim-editor.h"
 #include "vim-widget-priv.h"
 #include "vim-editor-priv.h"
-#include "vim-util.h"
 #include <string.h>
 
 #define GLADE_FILE ANJUTA_DATA_DIR"/glade/anjuta-gvim.glade"
@@ -55,35 +55,26 @@ extern isave_iface_init (IAnjutaFileSavableIface *iface);
 static GObjectClass* parent_class = NULL;
 
 VimEditor*
-vim_editor_new (AnjutaPlugin *plugin, const gchar* uri, const gchar* filename)
+vim_editor_new (AnjutaPlugin *plugin, GFile* file)
 {
 	VimEditor *editor;
-	VimEditor *editor_;
+	VimWidget *widget;
 	GError *err = NULL;
 	
 	DEBUG_PRINT ("VimPlugin: Creating new editor ...");
 
-
-	editor = VIM_EDITOR (g_object_new(VIM_TYPE_EDITOR, NULL));
+	widget = VIM_WIDGET (g_object_new(VIM_TYPE_WIDGET, NULL));
+	if (!file)
+		file = g_file_new_for_path ("/tmp/Untitled");
 	
 	/* Make sure that editors aren't repeated */
-	if (editor->priv->widget &&
-		((editor_ = vim_widget_get_document_filename (editor->priv->widget, filename, NULL)) ||
-		(editor_ = vim_widget_get_document_uri (editor->priv->widget, uri, NULL)))
-		)
-	{
-		return editor_;
-	}
+	if (widget &&
+		(editor = vim_widget_get_document_file (widget, file, NULL)))
+		return g_object_ref(editor);
 
-	if (strcmp(uri, "") != 0) editor->priv->uri = convert2uri(uri, "file");
-	else if (strcmp(filename, "") != 0) editor->priv->uri = convert2uri(filename, "file");
-	else editor->priv->uri = g_strdup_printf("");
+	editor = VIM_EDITOR (g_object_new(VIM_TYPE_EDITOR, NULL));
+	editor->priv->file = file;
 
-	if (strcmp(filename, "") != 0) editor->priv->filename = convert2filename(filename);
-	else if (strcmp(filename, "") != 0) editor->priv->filename = convert2filename(filename);
-	else editor->priv->filename = g_strdup_printf("");
-
-	if (filename) DEBUG_PRINT ("URI:%s\n FILENAME:%s\n", editor->priv->uri, editor->priv->filename);
 
 	/* Add to the documents */
 	return editor;
@@ -96,6 +87,18 @@ vim_editor_instance_init (GObject *object)
 	VimEditor *editor = VIM_EDITOR (object);
 	editor->priv = g_new0 (VimEditorPrivate, 1);
 	editor->priv->widget = g_object_new (VIM_TYPE_WIDGET, NULL);
+}
+
+static void
+vim_editor_dispose (GObject *object)
+{
+	/* TODO: Add deinitalization code here */	
+	VimEditor *editor = VIM_EDITOR (object);
+	VimWidget *widget = editor->priv->widget;
+	if (vim_widget_has_editor(editor))
+		vim_widget_remove_document_complete (widget, editor);
+	
+	parent_class->dispose (object);
 }
 
 static void

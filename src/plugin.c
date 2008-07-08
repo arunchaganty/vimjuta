@@ -19,6 +19,7 @@
 
 #include <config.h>
 #include <gtk/gtk.h>
+#include <gio/gio.h>
 #include <libanjuta/anjuta-shell.h>
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
@@ -110,14 +111,14 @@ anjuta_gvim_class_init (GObjectClass *klass)
  */
 static IAnjutaEditor*
 ieditor_factory_new_editor (IAnjutaEditorFactory* factory,
-								const gchar* uri,
+								GFile* file,
 								const gchar* filename,
 								GError** error)
 {
 	AnjutaPlugin* plugin = ANJUTA_PLUGIN (factory);
 	VimEditor* editor = NULL;
 	GError *err = NULL;
-	editor = vim_editor_new (plugin, filename, uri);
+	editor = vim_editor_new (plugin, file);
 
 	return IANJUTA_EDITOR (editor);
 }

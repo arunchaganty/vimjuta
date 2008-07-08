@@ -95,7 +95,7 @@ static const gchar*
 idocument_get_filename (IAnjutaDocument *idoc, GError **err)
 {
 	VimEditor* editor = (VimEditor*) idoc;
-	return g_strdup(editor->priv->filename);
+	return g_file_get_path(editor->priv->file);
 }
 
 static void 
