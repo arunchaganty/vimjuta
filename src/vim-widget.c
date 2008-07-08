@@ -266,6 +266,20 @@ imaster_set_registered (IAnjutaEditorMaster *obj, gboolean state, GError **err)
 	widget->priv->registered = state;
 }
 
+static gint
+imaster_get_page (IAnjutaEditorMaster *obj, GError **err)
+{
+	VimWidget* widget = VIM_WIDGET (obj);
+	return widget->priv->page_no;
+}
+
+static void
+imaster_set_page (IAnjutaEditorMaster *obj, gint page, GError **err)
+{
+	VimWidget* widget = VIM_WIDGET (obj);
+	widget->priv->page_no = page;
+}
+
 void 
 imaster_iface_init (IAnjutaEditorMasterIface *iface)
 {
@@ -278,6 +292,8 @@ imaster_iface_init (IAnjutaEditorMasterIface *iface)
 	iface->list_documents = imaster_list_documents;
 	iface->set_current_document = imaster_set_current_document;
 	iface->set_registered = imaster_set_registered;
+	iface->get_page = imaster_get_page;
+	iface->set_page = imaster_set_page;
 }
 
 /* Signal Callbacks */
