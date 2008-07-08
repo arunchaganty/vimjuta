@@ -111,39 +111,28 @@ vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err)
 }
 
 static void 
-vim_widget_connect_plug (VimWidget *widget, GParamSpec *param) 
+vim_widget_connect_plug (VimWidget *widget) 
 {
 	gchar *cmd;
 	GError *err = NULL;
-	GtkNotebook *parent;
+	widget->priv->socket_id = gtk_socket_get_id ((GtkSocket *) widget->priv->socket);
+	g_assert (widget->priv->socket_id != 0);
+	
+	cmd = g_strdup_printf ("gvim -U %s --socketid %d \n",
+			GVIMRC_FILE, widget->priv->socket_id);
+	g_message ("Executing %s\n", cmd);
+	/* Run vim */
+	g_spawn_command_line_async (cmd, &err);
+	g_free (cmd);
 
-	g_object_get (widget,
-			"parent", &parent,
-			NULL);
-
-
-	if (parent != NULL)
+	if (err)
 	{
-		widget->priv->socket_id = gtk_socket_get_id ((GtkSocket *) widget->priv->socket);
-		g_assert (widget->priv->socket_id != 0);
-		
-		cmd = g_strdup_printf ("gvim -U %s --socketid %d \n",
-				GVIMRC_FILE, widget->priv->socket_id);
-		g_message ("Executing %s\n", cmd);
-		/* Run vim */
-		g_spawn_command_line_async (cmd, &err);
-		g_free (cmd);
-
-		if (err)
-		{
-			DEBUG_PRINT ("VimPlugin: Error: %s", err);
-			g_object_unref (err);
-			err = NULL;
-		}
-
-		/* Connect callbacks */
+		DEBUG_PRINT ("VimPlugin: Error: %s", err);
+		g_object_unref (err);
+		err = NULL;
 	}
 
+		/* Connect callbacks */
 }
 
 /* IAnjutaEditorMaster */
@@ -321,6 +310,7 @@ vim_signal_buf_leave_cb (DBusGProxy *proxy, const guint bufno,
 void 
 vim_signal_vim_leave_cb (DBusGProxy *proxy, VimWidget *widget)
 {
+	g_object_run_dispose (G_OBJECT(widget));
 	/* Do nothing */
 }
 
@@ -361,7 +351,7 @@ vim_widget_constructor ( GType   type,
 	g_assert (widget != NULL && priv->socket != NULL);
 	gtk_container_add (GTK_CONTAINER(widget), GTK_WIDGET(priv->socket));
 	g_signal_connect_after (widget,
-						"notify::parent",
+						"realize",
 						G_CALLBACK(vim_widget_connect_plug),
 						NULL);
 	
@@ -385,22 +375,39 @@ vim_widget_instance_init (VimWidget *widget)
 }
 
 static void
-vim_widget_finalize (GObject *object)
+vim_widget_dispose (GObject *object)
 {
 	/* TODO: Add deinitalization code here */
 
 	VimWidget* widget = VIM_WIDGET (object);
     VimWidgetClass* klass = VIM_WIDGET_CLASS (g_type_class_peek (VIM_TYPE_WIDGET));
 	VimWidgetPrivate *priv = VIM_WIDGET_PRIVATE(widget);
+	GList* node = priv->documents;
 	
+	for (;node != NULL; node = g_list_next (node))
+		g_free (node->data);
 	g_list_free (priv->documents);
+
+	priv->socket_id = 0;
+	g_free (priv->socket);
+
 
 	g_free (priv->conn);
 	g_free (priv->dbus_proxy);
 	g_free (priv->proxy);
 
-	klass->widget = NULL;
-	parent_class->finalize (object);
+	priv->current_editor = NULL;
+	priv->registered = FALSE;
+	gboolean registered;
+
+	g_object_unref (klass->widget);
+	parent_class->dispose (object);
+}
+
+static void
+vim_widget_finalize (GObject *object)
+{
+	/* TODO: Add deinitalization code here */
 }
 
 static void
@@ -411,6 +418,7 @@ vim_widget_class_init (VimWidgetClass *klass)
 
 	g_type_class_add_private (klass, sizeof (VimWidgetPrivate));
 	object_class->constructor = vim_widget_constructor;
+	object_class->dispose = vim_widget_dispose;
 	object_class->finalize = vim_widget_finalize;
 
 	klass->widget = NULL; /* Singleton hasn't been initialized yet */

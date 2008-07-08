@@ -1,25 +1,25 @@
 # Sample Makefile for a anjuta plugin.
 
 # Plugin UI file
-anjuta-gvim_uidir = $(anjuta_ui_dir)
-anjuta-gvim_ui_DATA =  anjuta-gvim.ui \
+anjuta_gvim_uidir = $(anjuta_ui_dir)
+anjuta_gvim_ui_DATA =  anjuta-gvim.ui \
 	vim-test.ui
 
 
 # Plugin Glade file
-anjuta-gvim_gladedir = $(anjuta_glade_dir)
-anjuta-gvim_glade_DATA =  anjuta-gvim.glade
+anjuta_gvim_gladedir = $(anjuta_glade_dir)
+anjuta_gvim_glade_DATA =  anjuta-gvim.glade
 
 # Plugin Icon file
-anjuta-gvim_pixmapsdir = $(anjuta_image_dir)
-anjuta-gvim_pixmaps_DATA = anjuta-gvim.png
+anjuta_gvim_pixmapsdir = $(anjuta_image_dir)
+anjuta_gvim_pixmaps_DATA = anjuta-gvim.png
 
 # Plugin description file
 plugin_in_files = anjuta-gvim.plugin.in
 %.plugin: %.plugin.in $(INTLTOOL_MERGE) $(wildcard $(top_srcdir)/po/*po) ; $(INTLTOOL_MERGE) $(top_srcdir)/po $< $@ -d -u -c $(top_builddir)/po/.intltool-merge-cache
 
-anjuta-gvim_plugindir = $(anjuta_plugin_dir)
-anjuta-gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
+anjuta_gvim_plugindir = $(anjuta_plugin_dir)
+anjuta_gvim_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
 # NOTE :
 # The naming convention is very intentional
@@ -48,7 +48,7 @@ plugindir = $(anjuta_plugin_dir)
 plugin_LTLIBRARIES = libanjuta-gvim.la
 
 # Plugin sources
-libanjuta-gvim_la_SOURCES = plugin.c plugin.h \
+libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
 	vim-editor.h  vim-editor.c \
 	vim-ifile.c \
 	vim-idocument.c \
@@ -62,14 +62,14 @@ libanjuta-gvim_la_SOURCES = plugin.c plugin.h \
 
 
 # Plugin dependencies
-libanjuta-gvim_la_LIBADD = \
+libanjuta_gvim_la_LIBADD = \
 	$(LIBANJUTA_LIBS) 
 
 EXTRA_DIST = \
 	$(plugin_in_files) \
-	$(anjuta-gvim_plugin_DATA) \
-	$(anjuta-gvim_ui_DATA) \
-	$(anjuta-gvim_glade_DATA) \
-	$(anjuta-gvim_pixmaps_DATA) \
+	$(anjuta_gvim_plugin_DATA) \
+	$(anjuta_gvim_ui_DATA) \
+	$(anjuta_gvim_glade_DATA) \
+	$(anjuta_gvim_pixmaps_DATA) \
 	vim-dbus.py \
 	vim-test.ui

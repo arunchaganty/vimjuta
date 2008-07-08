@@ -3,8 +3,8 @@
 
 SUBDIRS = src po
 
-anjuta-gvimdocdir = ${prefix}/doc/anjuta-gvim
-anjuta-gvimdoc_DATA = \
+anjuta_gvimdocdir = ${prefix}/doc/anjuta-gvim
+anjuta_gvimdoc_DATA = \
 	README\
 	COPYING\
 	AUTHORS\
@@ -12,7 +12,7 @@ anjuta-gvimdoc_DATA = \
 	INSTALL\
 	NEWS
 
-EXTRA_DIST = $(anjuta-gvimdoc_DATA)
+EXTRA_DIST = $(anjuta_gvimdoc_DATA)
 
 # Copy all the spec files. Of cource, only one is actually used.
 dist-hook:
