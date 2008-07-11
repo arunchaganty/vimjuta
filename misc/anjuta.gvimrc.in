@@ -1,0 +1,35 @@
+" GVimRC for Anjuta
+"
+
+" Load the default gvimrc
+source ~/.gvimrc 
+set guioptions-=i
+set guioptions-=m
+set guioptions-=T
+set guioptions+=c
+
+" Do NOT change the following. Failing to heed this 
+" advice can and will screw up the Anjuta Vim plugin
+
+pyfile @datadir@/vim-dbus.py
+source @datadir@/anjuta-gvim.vim
+
+" Setup up autocommands to fire DBus signals
+augroup Anjuta
+    au!
+    au BufNewFile   *   call AnjutaSignalBufNewFile(str2nr(expand('<abuf>')))
+    au BufRead      *   call AnjutaSignalBufRead(str2nr(expand('<abuf>')), expand('<afile>'))
+    au BufWrite     *   call AnjutaSignalBufWrite(str2nr(expand('<abuf>')), expand('<afile>'))
+
+    au BufAdd       *   call AnjutaSignalBufAdd(str2nr(expand('<abuf>')), expand('<afile>'))
+    au BufDelete    *   call AnjutaSignalBufDelete(str2nr(expand('<abuf>')))
+    au BufFilePre   *   call AnjutaSignalBufFilePost(str2nr(expand('<abuf>')), expand('<afile>'))
+
+    au BufEnter     *   call AnjutaSignalBufEnter(str2nr(expand('<abuf>')), expand('<afile>'))
+    au BufLeave     *   call AnjutaSignalBufLeave(str2nr(expand('<abuf>')))
+
+    au VimLeave     *   call AnjutaSignalVimLeave()
+
+    au MenuPopup    *   call AnjutaSignalMenuPopup(expand('<abuf>'))
+augroup END
+
