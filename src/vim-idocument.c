@@ -68,7 +68,7 @@ idocument_copy (IAnjutaDocument *idoc, GError **err)
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (editor->priv->widget, ":yank \"*", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":'<,'>yank \"*", err);
 	
 	// TODO: Error Handling...
 }
@@ -80,7 +80,7 @@ idocument_cut (IAnjutaDocument *idoc, GError **err)
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (editor->priv->widget, ":yank \"*", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":'<,'>del \"*", err);
 	
 	// TODO: Error Handling...
 }

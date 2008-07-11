@@ -19,6 +19,9 @@
 "=============================================================================
 " Private Functions {{{
 
+function! AnjutaCheckBuf (bufno)
+    return bufloaded (a:bufno) && buflisted(a:bufno) && getbufvar(str2nr(a:bufno), '&buftype') == ""
+endfunction
 
 function! AnjutaPos (token)
     if (a:token == "0")
@@ -114,10 +117,16 @@ endfunction
 "=============================================================================
 
 function! AnjutaSignalBufNewFile(bufno)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
 	py  daemon.BufNewFile (vim.eval("a:bufno"));
 endfunction
 
 function! AnjutaSignalBufRead(bufno, file)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
 	if a:file == ""
 		py  daemon.BufRead (vim.eval("a:bufno"), "");
 	else
@@ -125,7 +134,10 @@ function! AnjutaSignalBufRead(bufno, file)
 	endif
 endfunction
 
-function! AnjutaSignalWrite(bufno, file)
+function! AnjutaSignalBufWrite(bufno, file)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
 	if a:file == ""
 		py  daemon.BufWrite (vim.eval("a:bufno"), "");
 	else
@@ -134,6 +146,9 @@ function! AnjutaSignalWrite(bufno, file)
 endfunction
 
 function! AnjutaSignalBufAdd(bufno, file)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
 	if a:file == ""
 		py  daemon.BufAdd (vim.eval("a:bufno"), "");
 	else
@@ -142,10 +157,17 @@ function! AnjutaSignalBufAdd(bufno, file)
 endfunction
 
 function! AnjutaSignalBufDelete(bufno)
+	" Special check, as buffer is about to be unloaded
+    if !(buflisted(a:bufno) && getbufvar(str2nr(a:bufno), '&buftype') == "")
+        return
+    endif
 	py  daemon.BufDelete (vim.eval("a:bufno"));
 endfunction
 
 function! AnjutaSignalBufFilePost(bufno, file)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
 	if a:file == ""
 		py  daemon.BufFilePost (vim.eval("a:bufno"), "");
 	else
@@ -154,14 +176,21 @@ function! AnjutaSignalBufFilePost(bufno, file)
 endfunction
 
 function! AnjutaSignalBufEnter(bufno, file)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
 	if a:file == ""
-		py  daemon.BufEnter (vim.eval("a:bufno"), "");
+		return
+		py  daemon.BufEnter (vim.eval("a:bufno"), "")
 	else
-		py  daemon.BufEnter (vim.eval("a:bufno"), vim.eval("a:file"));
+		py  daemon.BufEnter (vim.eval("a:bufno"), vim.eval("a:file"))
 	endif
 endfunction
 
 function! AnjutaSignalBufLeave(bufno)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
 	py  daemon.BufLeave (vim.eval("a:bufno"));
 endfunction
 
@@ -170,6 +199,9 @@ function! AnjutaSignalVimLeave()
 endfunction
 
 function! AnjutaSignalMenuPopup(bufno)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
 	py  daemon.MenuPopup (vim.eval("a:bufno"));
 endfunction
 

@@ -34,8 +34,8 @@
 #include "vim-dbus.h"
 
 #define VIM_WIDGET_PRIVATE(o)  (G_TYPE_INSTANCE_GET_PRIVATE ((o), VIM_TYPE_WIDGET, VimWidgetPrivate))
-#define VIM_DBUS_FILE "/home/teju/Projects/anjuta-gvim/src/vim-dbus.py"
-#define GVIMRC_FILE "/home/teju/Projects/anjuta-gvim/misc/anjuta.gvimrc"
+#define GVIMRC_FILE ANJUTA_DATA_DIR"/gvim/anjuta.gvimrc"
+#define UNTITLED_FILE "/tmp/Untitled"
 
 static GObjectClass* parent_class;
 
@@ -74,18 +74,41 @@ vim_widget_remove_document (VimWidget *widget, VimEditor *editor, GError **err)
 void
 vim_widget_remove_document_complete (VimWidget *widget, VimEditor *editor)
 {
+	GFile *file = g_file_new_for_path (UNTITLED_FILE);
+	/* The phantom "Untitled document" */
+	VimEditor *null_editor = vim_widget_get_document_file (widget, file, NULL);
+
 	g_return_if_fail (editor != NULL);
+
 	/* If the last element from the list is being removed, delete the list */
-	if (g_list_length (widget->priv->documents) == 1)
+	/* Check for the phantom "Untitled" document */
+	if (editor == null_editor) 
 	{
-		g_list_free (widget->priv->documents);
-		widget->priv->documents = NULL;
+		if (g_list_length (widget->priv->documents) == 1)
+		{
+			g_list_free (widget->priv->documents);
+			widget->priv->documents = NULL;
+		}
+		else
+			widget->priv->documents = g_list_remove (widget->priv->documents, editor);
 	}
 	else
-		widget->priv->documents = g_list_remove (widget->priv->documents, editor);
+	{
+		if((null_editor && g_list_length (widget->priv->documents) == 2) ||
+		  ((null_editor == NULL) && g_list_length (widget->priv->documents) == 1))
+		{
+			g_list_free (widget->priv->documents);
+			widget->priv->documents = NULL;
+		}
+		else
+			widget->priv->documents = g_list_remove (widget->priv->documents, editor);
+	}
+
 	g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
 			"document-removed",
 			G_OBJECT(editor));
+	if (null_editor) g_object_unref (null_editor);
+	g_object_unref (file);
 	g_object_unref (editor);
 }
 
@@ -204,6 +227,18 @@ vim_widget_set_current_editor (VimWidget *widget, VimEditor *editor, GError **er
 	}
 }
 
+vim_widget_close_all (VimWidget *widget)
+{
+	GList* list = widget->priv->documents;
+
+	while (list)
+	{
+		VimEditor *editor = VIM_EDITOR (list->data);
+		vim_widget_remove_document_complete (widget, editor);
+		list = widget->priv->documents;
+	}
+}
+
 /* IAnjutaEditorMaster */
 
 static void
@@ -256,6 +291,10 @@ imaster_set_current_document (IAnjutaEditorMaster *obj, IAnjutaDocument *documen
 {
 	VimWidget* widget = VIM_WIDGET (obj);
 	VimEditor* editor = VIM_EDITOR (document);
+	/* Anjuta sometimes tries to switch to this document right before 
+	 * it is loaded */
+	if (!vim_widget_has_editor (widget, editor))
+		return;
 	vim_widget_set_current_editor (widget, editor, err);
 }
 
@@ -301,7 +340,8 @@ void
 vim_signal_buf_new_file_cb (DBusGProxy *proxy, const guint bufno, 
 		VimWidget *widget)
 {
-	VimEditor* editor = vim_editor_new (NULL, NULL);
+	GFile *file = g_file_new_for_path (UNTITLED_FILE);
+	VimEditor* editor = vim_editor_new (NULL, file);
 	editor->priv->bufno = bufno;
 	if (!vim_widget_has_editor (widget, editor))
 		vim_widget_add_document_complete (widget, editor);
@@ -313,7 +353,20 @@ void
 vim_signal_buf_read_cb (DBusGProxy *proxy, const guint bufno, 
 		const gchar* filename, VimWidget *widget)
 {
-	/* Nothing needs to be done here */
+	/* Sometimes, Vim opens new files this way too. *sigh* */
+	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
+	if (!editor)
+	{
+		GFile* file;
+		if (strcmp (filename, "") != 0)
+			file = g_file_new_for_path (filename);
+		else
+			file = g_file_new_for_path (UNTITLED_FILE);
+		editor = vim_editor_new (NULL, file);
+		editor->priv->bufno = bufno;
+		editor->priv->file = file;
+		vim_widget_add_document_complete (widget, editor);
+	}
 }
 
 void 
@@ -344,6 +397,7 @@ vim_signal_buf_delete_cb (DBusGProxy *proxy, const guint bufno,
 		VimWidget *widget)
 {
 	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
+	if (!editor) return;
 	vim_widget_remove_document_complete (widget, editor);
 }
 
@@ -353,6 +407,7 @@ vim_signal_buf_file_post_cb (DBusGProxy *proxy, const guint bufno,
 		const gchar* filename, VimWidget *widget)
 {
 	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
+	if (!editor) return;
 	GFile *file = g_file_new_for_path (filename);
 	if (g_file_equal(editor->priv->file, file))
 	{
@@ -367,29 +422,15 @@ vim_signal_buf_enter_cb (DBusGProxy *proxy, const guint bufno,
 		const gchar* filename, VimWidget *widget)
 {
 	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
-	/* Sometimes vim opens new files with BufEnter */
 	if (!editor)
-	{
-		GFile *file = g_file_new_for_path (filename);
-		editor = vim_editor_new (NULL, file);
-		editor->priv->bufno = bufno;
-		editor->priv->file = file;
-		vim_widget_add_document_complete (widget, editor);
-		widget->priv->current_editor = editor;
-		g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
-				"current-document-changed",
-				G_OBJECT(editor));
-	}
-	else
-	{
-		editor->priv->bufno = bufno;
-		widget->priv->current_editor = editor;
-		g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
-				"current-document-changed",
-				G_OBJECT(editor));
-		g_object_unref (editor);
-	}
+		return;
+	editor->priv->bufno = bufno;
+	widget->priv->current_editor = editor;
 	/* Set the current editor */
+	g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
+			"current-document-changed",
+			G_OBJECT(editor));
+	g_object_unref (editor);
 }
 
 void 
@@ -403,6 +444,7 @@ vim_signal_buf_leave_cb (DBusGProxy *proxy, const guint bufno,
 void 
 vim_signal_vim_leave_cb (DBusGProxy *proxy, VimWidget *widget)
 {
+	vim_widget_close_all (widget);
 	g_object_unref (widget);
 	/* Do nothing */
 }

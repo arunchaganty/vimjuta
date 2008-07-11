@@ -56,7 +56,6 @@ extern void vim_signal_menu_popup_cb (DBusGProxy *proxy, const guint,
  * used before DBus initializes*/
 
 static GList* cmd_list = NULL;
-
 /**
  * vim_queue_add : Adds commands to the queue. Commands are run
  * without replying

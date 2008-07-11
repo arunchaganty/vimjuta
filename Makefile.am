@@ -1,7 +1,7 @@
 ## Process this file with automake to produce Makefile.in
 ## Created by Anjuta
 
-SUBDIRS = src po
+SUBDIRS = src po misc
 
 anjuta_gvimdocdir = ${prefix}/doc/anjuta-gvim
 anjuta_gvimdoc_DATA = \

@@ -4,3 +4,4 @@ Icon=anjuta-gvim.png
 _Name=Vim Editor Plugin
 _Description=The Vim Editor, for Anjuta
 _Interfaces=IAnjutaEditorFactory
+_UserActivatable=no

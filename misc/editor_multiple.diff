@@ -1,6 +1,6 @@
 Index: plugins/document-manager/anjuta-docman.c
 ===================================================================
---- plugins/document-manager/anjuta-docman.c	(revision 4068)
+--- plugins/document-manager/anjuta-docman.c	(revision 4075)
 +++ plugins/document-manager/anjuta-docman.c	(working copy)
 @@ -27,6 +27,8 @@
  #include <libanjuta/interfaces/ianjuta-markable.h>
@@ -274,7 +274,7 @@ Index: plugins/document-manager/anjuta-docman.c
  				break;
  			}
  		}
-@@ -324,21 +420,48 @@
+@@ -324,21 +420,49 @@
  }
  
  static void
@@ -288,6 +288,7 @@ Index: plugins/document-manager/anjuta-docman.c
 +{
 +	anjuta_docman_set_current_document (docman, doc);
 +	anjuta_docman_update_documents_menu_status (docman);
++	anjuta_docman_update_page_label(docman, doc);
 +}
 +
 +static void
@@ -324,7 +325,7 @@ Index: plugins/document-manager/anjuta-docman.c
  	
  	gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &w, &h);
  
-@@ -456,9 +579,6 @@
+@@ -456,9 +580,6 @@
  	gtk_widget_show_all (menu_box);
  	
  	/* main box */
@@ -334,7 +335,7 @@ Index: plugins/document-manager/anjuta-docman.c
  	g_signal_connect (G_OBJECT (close_button), "clicked",
  					  G_CALLBACK (on_notebook_page_close_button_click),
  					  docman);
-@@ -475,7 +595,7 @@
+@@ -475,7 +596,7 @@
  					  G_CALLBACK (on_notebook_tab_btnrelease),
  					  docman);
  
@@ -343,7 +344,7 @@ Index: plugins/document-manager/anjuta-docman.c
  	page->doc = doc;
  	page->message_area = NULL;
  	page->box = box;
-@@ -865,7 +985,14 @@
+@@ -865,7 +986,14 @@
  		AnjutaDocmanPage *page;
  		
  		page = anjuta_docman_get_nth_page (docman, page_num);
@@ -359,7 +360,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		
  		/* TTimo: reorder so that the most recently used files are
  		 * at the beginning of the tab list
-@@ -890,6 +1017,43 @@
+@@ -890,6 +1018,43 @@
  }
  
  static void
@@ -403,7 +404,7 @@ Index: plugins/document-manager/anjuta-docman.c
  on_document_destroy (IAnjutaDocument *doc, AnjutaDocman *docman)
  {
  	AnjutaDocmanPage *page;
-@@ -914,13 +1078,14 @@
+@@ -914,13 +1079,14 @@
  		else
  		{
  			AnjutaDocmanPage *next_page;
@@ -420,7 +421,7 @@ Index: plugins/document-manager/anjuta-docman.c
  }
  
  /**
-@@ -958,22 +1123,59 @@
+@@ -958,22 +1124,59 @@
  							GFile* file)
  {
  	AnjutaDocmanPage *page;
@@ -492,7 +493,7 @@ Index: plugins/document-manager/anjuta-docman.c
  	
  	g_object_ref (doc);
  	
-@@ -987,6 +1189,8 @@
+@@ -987,6 +1190,8 @@
  anjuta_docman_remove_document (AnjutaDocman *docman, IAnjutaDocument *doc)
  {
  	AnjutaDocmanPage *page;
@@ -501,7 +502,7 @@ Index: plugins/document-manager/anjuta-docman.c
  
  	if (!doc)
  		doc = anjuta_docman_get_current_document (docman);
-@@ -994,19 +1198,35 @@
+@@ -994,18 +1199,34 @@
  	if (!doc)
  		return;
  
@@ -527,7 +528,6 @@ Index: plugins/document-manager/anjuta-docman.c
 +		g_list_free (list);
 +		g_object_unref (imaster);
  	}
--	anjuta_docman_update_documents_menu(docman);
 +
 +	/* If this was the last document or just a single document, remove from view */
 +	if (last_doc)
@@ -543,12 +543,11 @@ Index: plugins/document-manager/anjuta-docman.c
 +					g_signal_emit (G_OBJECT (docman), docman_signals[DOC_CHANGED], 0, NULL);
 +			g_free (page);
 +		}
-+		anjuta_docman_update_documents_menu(docman);
 +	}
+ 	anjuta_docman_update_documents_menu(docman);
  	g_object_unref (doc);
  }
- 
-@@ -1051,8 +1271,18 @@
+@@ -1051,8 +1272,17 @@
  
  		page = node->data;
  		g_assert (page);
@@ -558,12 +557,11 @@ Index: plugins/document-manager/anjuta-docman.c
 +		if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc))
 +		{
 +			IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+			if (ianjuta_editor_master_has_document (imaster, doc, NULL))
-+				return page;
 +			g_object_unref (imaster);
+ 			return page;
 +		}
 +		else if (page->doc == doc)
- 			return page;
++			return page;
 +
  		node = g_list_next (node);
  	}
@@ -884,7 +882,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		wids = g_list_reverse (wids);
 Index: plugins/document-manager/action-callbacks.c
 ===================================================================
---- plugins/document-manager/action-callbacks.c	(revision 4068)
+--- plugins/document-manager/action-callbacks.c	(revision 4075)
 +++ plugins/document-manager/action-callbacks.c	(working copy)
 @@ -23,6 +23,8 @@
  
@@ -968,7 +966,7 @@ Index: plugins/document-manager/action-callbacks.c
  }
 Index: libanjuta/interfaces/libanjuta.idl
 ===================================================================
---- libanjuta/interfaces/libanjuta.idl	(revision 4068)
+--- libanjuta/interfaces/libanjuta.idl	(revision 4075)
 +++ libanjuta/interfaces/libanjuta.idl	(working copy)
 @@ -41,18 +41,18 @@
  	 * @file: file to open.

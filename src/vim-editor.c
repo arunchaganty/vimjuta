@@ -42,8 +42,6 @@
 #include "vim-editor-priv.h"
 #include <string.h>
 
-#define GLADE_FILE ANJUTA_DATA_DIR"/glade/anjuta-gvim.glade"
-
 extern void ieditor_iface_init (IAnjutaEditorIface *iface);
 extern void imultiple_iface_init (IAnjutaEditorIface *iface);
 extern void idocument_iface_init (IAnjutaDocumentIface *iface);
@@ -61,12 +59,11 @@ vim_editor_new (AnjutaPlugin *plugin, GFile* file)
 	VimWidget *widget;
 	GError *err = NULL;
 	
+	g_return_if_fail (file);
 	DEBUG_PRINT ("VimPlugin: Creating new editor ...");
 
 	widget = VIM_WIDGET (g_object_new(VIM_TYPE_WIDGET, NULL));
-	if (!file)
-		file = g_file_new_for_path ("/tmp/Untitled");
-	
+
 	/* Make sure that editors aren't repeated */
 	if (widget &&
 		(editor = vim_widget_get_document_file (widget, file, NULL)))

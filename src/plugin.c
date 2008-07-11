@@ -32,6 +32,7 @@
 #include "plugin.h"
 
 #define UI_FILE ANJUTA_DATA_DIR"/ui/vim-test.ui"
+#define GLADE_FILE ANJUTA_DATA_DIR"/glade/anjuta-gvim.glade"
 
 static gpointer parent_class;
 
