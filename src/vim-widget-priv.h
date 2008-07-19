@@ -39,6 +39,7 @@ struct _VimWidgetPrivate
 	DBusGProxy* proxy;
 
 	GList* documents; 
+	GList* unloaded; 
 	gint page_no;
 	gboolean registered;
 	VimEditor *current_editor;

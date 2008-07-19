@@ -36,34 +36,34 @@ function! AnjutaPos (token)
 endfunction
 
 function! AnjutaGetBuf (buffer,start, end)
-	if (type(a:start) == 1)
-		let l:startp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:start))
-	else
-		let l:startp = AnjutaByte2Pos(a:buffer, a:start)
-	endif
-	if (type(a:end) == 1)
-		let l:endp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:end))
-	else
-		let l:endp = AnjutaByte2Pos(a:buffer, a:end)
-	endif
+    if (type(a:start) == 1)
+        let l:startp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:start))
+    else
+        let l:startp = AnjutaByte2Pos(a:buffer, a:start)
+    endif
+    if (type(a:end) == 1)
+        let l:endp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:end))
+    else
+        let l:endp = AnjutaByte2Pos(a:buffer, a:end)
+    endif
 
-	let s = getpos("'s")
-	let e = getpos("'e")
+    let s = getpos("'s")
+    let e = getpos("'e")
     call setpos("'s", l:startp)
-	call setpos("'e", l:endp)
+    call setpos("'e", l:endp)
 
     let a = @z
     's,'eyank z
     let b = @z
 
-	try
-		call setpos("'s", s)
-	catch /^Vim\%((\a\+)\)\=:E20/
-	endtry
-	try
-		call setpos("'e", e)
-	catch /^Vim\%((\a\+)\)\=:E20/
-	endtry
+    try
+        call setpos("'s", s)
+    catch /^Vim\%((\a\+)\)\=:E20/
+    endtry
+    try
+        call setpos("'e", e)
+    catch /^Vim\%((\a\+)\)\=:E20/
+    endtry
 
     return b
 endfunction
@@ -74,11 +74,11 @@ function! AnjutaByte2Pos (buffer, byte)
 endfunction
 
 function! AnjutaInsert (buffer, str, pos)
-	if (type(a:pos) == 1)
-		let l:pos = AnjutaByte2Pos(a:buffer, AnjutaPos(a:pos))
-	else
-		let l:pos = AnjutaByte2Pos(a:buffer, a:pos)
-	endif
+    if (type(a:pos) == 1)
+        let l:pos = AnjutaByte2Pos(a:buffer, AnjutaPos(a:pos))
+    else
+        let l:pos = AnjutaByte2Pos(a:buffer, a:pos)
+    endif
     let a = @z
     let @z = a:str 
     call setpos('.', l:pos)
@@ -87,22 +87,22 @@ function! AnjutaInsert (buffer, str, pos)
 endfunction
 
 function! AnjutaErase (buffer, start, end)
-	if (type(a:start) == 1)
-		let l:startp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:start))
-	else
-		let l:startp = AnjutaByte2Pos(a:buffer, a:start)
-	endif
-	if (type(a:end) == 1)
-		let l:endp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:end))
-	else
-		let l:endp = AnjutaByte2Pos(a:buffer, a:end)
-	endif
+    if (type(a:start) == 1)
+        let l:startp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:start))
+    else
+        let l:startp = AnjutaByte2Pos(a:buffer, a:start)
+    endif
+    if (type(a:end) == 1)
+        let l:endp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:end))
+    else
+        let l:endp = AnjutaByte2Pos(a:buffer, a:end)
+    endif
 
     let pos1 = getpos("'s")
     let pos2 = getpos("'e")
 
     setpos ("'s", l:startp)
-	setpos ("'e", l:endp)
+    setpos ("'e", l:endp)
 
     's,'edelete
 
@@ -120,88 +120,96 @@ function! AnjutaSignalBufNewFile(bufno)
     if !AnjutaCheckBuf(a:bufno)
         return
     endif
-	py  daemon.BufNewFile (vim.eval("a:bufno"));
+    py  daemon.BufNewFile (vim.eval("a:bufno"));
 endfunction
 
 function! AnjutaSignalBufRead(bufno, file)
     if !AnjutaCheckBuf(a:bufno)
         return
     endif
-	if a:file == ""
-		py  daemon.BufRead (vim.eval("a:bufno"), "");
-	else
-		py  daemon.BufRead (vim.eval("a:bufno"), vim.eval("a:file"));
-	endif
+    if a:file == ""
+        py  daemon.BufRead (vim.eval("a:bufno"), "");
+    else
+        py  daemon.BufRead (vim.eval("a:bufno"), vim.eval("a:file"));
+    endif
 endfunction
 
 function! AnjutaSignalBufWrite(bufno, file)
     if !AnjutaCheckBuf(a:bufno)
         return
     endif
-	if a:file == ""
-		py  daemon.BufWrite (vim.eval("a:bufno"), "");
-	else
-		py  daemon.BufWrite (vim.eval("a:bufno"), vim.eval("a:file"));
-	endif
+    if a:file == ""
+        py  daemon.BufWrite (vim.eval("a:bufno"), "");
+    else
+        py  daemon.BufWrite (vim.eval("a:bufno"), vim.eval("a:file"));
+    endif
 endfunction
 
 function! AnjutaSignalBufAdd(bufno, file)
     if !AnjutaCheckBuf(a:bufno)
         return
     endif
-	if a:file == ""
-		py  daemon.BufAdd (vim.eval("a:bufno"), "");
-	else
-		py  daemon.BufAdd (vim.eval("a:bufno"), vim.eval("a:file"));
-	endif
+    if a:file == ""
+        py  daemon.BufAdd (vim.eval("a:bufno"), "");
+    else
+        py  daemon.BufAdd (vim.eval("a:bufno"), vim.eval("a:file"));
+    endif
 endfunction
 
 function! AnjutaSignalBufDelete(bufno)
-	" Special check, as buffer is about to be unloaded
+    " Special check, as buffer is about to be unloaded
     if !(buflisted(a:bufno) && getbufvar(str2nr(a:bufno), '&buftype') == "")
         return
     endif
-	py  daemon.BufDelete (vim.eval("a:bufno"));
+    py  daemon.BufDelete (vim.eval("a:bufno"));
+
+"	let bufno = bufnr('%')
+"	let filename = expand('%:p')
+
+"    if AnjutaCheckBuf(filename)
+"        py  daemon.BufEnter (vim.eval("bufno"), vim.eval("filename"));
+"    endif
 endfunction
 
 function! AnjutaSignalBufFilePost(bufno, file)
     if !AnjutaCheckBuf(a:bufno)
         return
     endif
-	if a:file == ""
-		py  daemon.BufFilePost (vim.eval("a:bufno"), "");
-	else
-		py  daemon.BufFilePost (vim.eval("a:bufno"), vim.eval("a:file"));
-	endif
+    if a:file == ""
+        py  daemon.BufFilePost (vim.eval("a:bufno"), "");
+    else
+        py  daemon.BufFilePost (vim.eval("a:bufno"), vim.eval("a:file"));
+    endif
 endfunction
 
 function! AnjutaSignalBufEnter(bufno, file)
     if !AnjutaCheckBuf(a:bufno)
         return
     endif
-	if a:file == ""
-		return
-		py  daemon.BufEnter (vim.eval("a:bufno"), "")
-	else
-		py  daemon.BufEnter (vim.eval("a:bufno"), vim.eval("a:file"))
-	endif
+    if a:file == ""
+        return
+        py  daemon.BufEnter (vim.eval("a:bufno"), "")
+    else
+        py  daemon.BufEnter (vim.eval("a:bufno"), vim.eval("a:file"))
+    endif
 endfunction
 
 function! AnjutaSignalBufLeave(bufno)
     if !AnjutaCheckBuf(a:bufno)
         return
     endif
-	py  daemon.BufLeave (vim.eval("a:bufno"));
+    py  daemon.BufLeave (vim.eval("a:bufno"));
 endfunction
 
 function! AnjutaSignalVimLeave()
-	py  daemon.VimLeave ();
+    py  daemon.VimLeave ();
 endfunction
 
 function! AnjutaSignalMenuPopup(bufno)
     if !AnjutaCheckBuf(a:bufno)
         return
     endif
-	py  daemon.MenuPopup (vim.eval("a:bufno"));
+    py  daemon.MenuPopup (vim.eval("a:bufno"));
 endfunction
+
 

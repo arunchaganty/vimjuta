@@ -18,14 +18,14 @@ source @datadir@/anjuta-gvim.vim
 augroup Anjuta
     au!
     au BufNewFile   *   call AnjutaSignalBufNewFile(str2nr(expand('<abuf>')))
-    au BufRead      *   call AnjutaSignalBufRead(str2nr(expand('<abuf>')), expand('<afile>'))
-    au BufWrite     *   call AnjutaSignalBufWrite(str2nr(expand('<abuf>')), expand('<afile>'))
+    au BufRead      *   call AnjutaSignalBufRead(str2nr(expand('<abuf>')), expand('<afile>:p'))
+    au BufWrite     *   call AnjutaSignalBufWrite(str2nr(expand('<abuf>')), expand('<afile>:p'))
 
-    au BufAdd       *   call AnjutaSignalBufAdd(str2nr(expand('<abuf>')), expand('<afile>'))
+    au BufAdd       *   call AnjutaSignalBufAdd(str2nr(expand('<abuf>')), expand('<afile>:p'))
     au BufDelete    *   call AnjutaSignalBufDelete(str2nr(expand('<abuf>')))
-    au BufFilePre   *   call AnjutaSignalBufFilePost(str2nr(expand('<abuf>')), expand('<afile>'))
+    au BufFilePre   *   call AnjutaSignalBufFilePost(str2nr(expand('<abuf>')), expand('<afile>:p'))
 
-    au BufEnter     *   call AnjutaSignalBufEnter(str2nr(expand('<abuf>')), expand('<afile>'))
+    au BufEnter     *   call AnjutaSignalBufEnter(str2nr(expand('<abuf>')), expand('<afile>:p'))
     au BufLeave     *   call AnjutaSignalBufLeave(str2nr(expand('<abuf>')))
 
     au VimLeave     *   call AnjutaSignalVimLeave()

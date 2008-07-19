@@ -59,6 +59,7 @@ VimEditor* vim_widget_get_document_bufno (VimWidget *widget, const guint bufno, 
 VimEditor* vim_widget_get_document_file (VimWidget *widget, GFile* file, GError **err);
 VimEditor* vim_widget_get_document_filename (VimWidget *widget, const gchar* filename, GError **err);
 VimEditor* vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err);
+void vim_widget_set_current_editor (VimWidget *widget, VimEditor *editor, GError **err);
 
 G_END_DECLS
 

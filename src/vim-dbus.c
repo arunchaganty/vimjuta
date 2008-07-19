@@ -89,6 +89,7 @@ vim_queue_exec (VimWidget* widget)
 		vim_dbus_exec_without_reply (widget, (gchar*) node->data, NULL);
 	g_list_foreach (cmd_list, (GFunc)g_free, NULL);
 	g_list_free (cmd_list);
+	cmd_list = NULL;
 }
 
 static void

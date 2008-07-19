@@ -45,12 +45,12 @@ typedef struct _VimEditorPrivate VimEditorPrivate;
 
 struct _VimEditorClass
 {
-	GObjectClass parent_class;
+	GtkObjectClass parent_class;
 };
 
 struct _VimEditor
 {
-	GObject parent;
+	GtkObject parent;
 	VimEditorPrivate *priv;
 };
 

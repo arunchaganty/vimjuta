@@ -67,14 +67,18 @@ vim_editor_new (AnjutaPlugin *plugin, GFile* file)
 	/* Make sure that editors aren't repeated */
 	if (widget &&
 		(editor = vim_widget_get_document_file (widget, file, NULL)))
-		return g_object_ref(editor);
+	{
+		g_object_unref (widget);
+		return g_object_ref (editor);
+	}
 
 	editor = VIM_EDITOR (g_object_new(VIM_TYPE_EDITOR, NULL));
 	editor->priv->file = file;
-
+	vim_widget_add_document (widget, editor, NULL);
+	g_object_unref (widget);
 
 	/* Add to the documents */
-	return editor;
+	return g_object_ref_sink (editor);
 }
 
 /* GObject */
@@ -89,20 +93,22 @@ vim_editor_instance_init (GObject *object)
 static void
 vim_editor_dispose (GObject *object)
 {
-	/* TODO: Add deinitalization code here */	
 	VimEditor *editor = VIM_EDITOR (object);
 	VimWidget *widget = editor->priv->widget;
-	if (vim_widget_has_editor(editor))
+
+	if (vim_widget_has_editor(widget,editor))
 		vim_widget_remove_document_complete (widget, editor);
-	
+
 	parent_class->dispose (object);
 }
 
 static void
 vim_editor_finalize (GObject *object)
 {
-	/* TODO: Add deinitalization code here */	
 	VimEditor *editor = VIM_EDITOR (object);
+	g_object_unref (editor->priv->file);
+	g_object_unref (editor->priv->widget);
+	g_free (editor->priv);
 	
 	parent_class->finalize (object);
 }
@@ -110,13 +116,32 @@ vim_editor_finalize (GObject *object)
 static void
 vim_editor_class_init (VimEditorClass *klass)
 {
+	static gboolean initialized = FALSE;
 	GObjectClass* object_class = G_OBJECT_CLASS (klass);
 	parent_class = g_type_class_peek_parent (klass);
 
+	/*
+	if (!initialized)
+	{
+		initialized = TRUE;
+
+		g_signal_new ("destroy",
+			VIM_TYPE_EDITOR,
+			G_SIGNAL_RUN_CLEANUP|G_SIGNAL_NO_RECURSE|G_SIGNAL_NO_HOOKS,
+			0,
+			NULL, NULL,
+			g_cclosure_marshal_VOID__VOID,
+			G_TYPE_NONE,
+			0);
+	}
+	*/
+
+
+	object_class->dispose = vim_editor_dispose;
 	object_class->finalize = vim_editor_finalize;
 }
 
-ANJUTA_TYPE_BEGIN (VimEditor, vim_editor, G_TYPE_OBJECT);
+ANJUTA_TYPE_BEGIN (VimEditor, vim_editor, GTK_TYPE_OBJECT);
 ANJUTA_TYPE_ADD_INTERFACE(ieditor, IANJUTA_TYPE_EDITOR);
 ANJUTA_TYPE_ADD_INTERFACE(imultiple, IANJUTA_TYPE_EDITOR_MULTIPLE);
 ANJUTA_TYPE_ADD_INTERFACE(idocument, IANJUTA_TYPE_DOCUMENT);
