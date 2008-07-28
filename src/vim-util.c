@@ -26,24 +26,35 @@
 
 #include <glib-object.h>
 #include <string.h>
+#include "vim-util.h"
 
-static gchar* 
+/* Parses return strings of the form [start,end,string] */
+void 
+parse_vim_arr (gchar* str, int *start, int *end, gchar** ret_str)
+{
+	gchar* tmp_str;
+	gchar** str_array;
+	tmp_str = str_substr (str, 1, strlen(str)-1);
+	str_array = g_strsplit (tmp_str, ",", 3);
+	if (start) *start = atoi (str_array[0]);
+	if (end) *end = atoi (str_array[1]);
+	if (ret_str) *ret_str = str_substr(str_array[2], 2, strlen(str_array[2]) -1);
+	g_free (tmp_str);
+	g_strfreev (str_array);
+}
+
+gchar* 
 str_substr (const gchar* str, const gint start, const gint end)
 {
 	gchar *new_str = NULL;
 	gint i, j = 0;
 
-	g_assert (end > start);
+	g_assert (end >= start && end < strlen(str));
+	if (end == start)
+		return g_strdup ("");
 	new_str = g_new0 (gchar, end - start);
 
-	for (i = 0; i < start; i++)
-		g_return_if_fail (str[i] != '\0');
-
-	for (;i < end; i++ && j++) {
-		if (str[i] == '\0')
-			break;
-		new_str[j] = str[i];
-	}
+	memcpy (new_str, &str[start], (end-start)*sizeof(gchar));
 
 	return new_str;
 }

@@ -68,7 +68,7 @@ idocument_copy (IAnjutaDocument *idoc, GError **err)
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (editor->priv->widget, ":'<,'>yank \"*", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":'<,'>yank \"+", err);
 	
 	// TODO: Error Handling...
 }
@@ -80,7 +80,7 @@ idocument_cut (IAnjutaDocument *idoc, GError **err)
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (editor->priv->widget, ":'<,'>del \"*", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":'<,'>del \"+", err);
 	
 	// TODO: Error Handling...
 }
@@ -102,7 +102,8 @@ static void
 idocument_grab_focus (IAnjutaDocument *idoc, GError **err)
 {
 	VimEditor* editor = (VimEditor*) idoc;
-	gtk_widget_grab_focus (GTK_WIDGET(editor->priv->widget));
+	vim_widget_grab_focus (editor->priv->widget);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":redraw", err);
 }
 
 static void 
@@ -112,7 +113,7 @@ idocument_paste (IAnjutaDocument *idoc, GError **err)
 
 	g_assert (err == NULL);
 	// Create query string
-	vim_dbus_exec_without_reply (editor->priv->widget, ":put \"*", err);
+	vim_dbus_exec_without_reply (editor->priv->widget, ":put \"+", err);
 	
 	// TODO: Error Handling...
 }

@@ -44,7 +44,7 @@ ifile_open (IAnjutaFile *obj, GFile *file, GError **err) {
 	gchar *cmd;
 	g_assert (file != NULL);
 
-	cmd = g_strdup_printf (":edit %s", g_file_get_path(file));
+	cmd = g_strdup_printf (":edit! %s", g_file_get_path(file));
 	g_message ("Executing: %s", cmd);
 
 	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
@@ -63,7 +63,6 @@ static gboolean
 isave_is_dirty (IAnjutaFileSavable *obj, GError **err)
 {
 	VimEditor* editor = VIM_EDITOR (obj);
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), TRUE);
 	return vim_dbus_int_query (editor->priv->widget, "&modified", err);
 }
 
@@ -71,7 +70,6 @@ static gboolean
 isave_is_read_only (IAnjutaFileSavable *obj, GError **err)
 {
 	VimEditor* editor = VIM_EDITOR (obj);
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), TRUE);
 	return (gboolean) vim_dbus_int_query (editor->priv->widget, "&readonly", err);
 }
 
@@ -91,7 +89,7 @@ isave_save_as (IAnjutaFileSavable *obj, GFile *file, GError **err)
 	VimEditor* editor = VIM_EDITOR (obj);
 	gchar *cmd = NULL;
 
-	cmd = g_strdup_printf (":w %s", g_file_get_path(file));
+	cmd = g_strdup_printf (":write %s", g_file_get_path(file));
 	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
 
 	g_free (cmd);

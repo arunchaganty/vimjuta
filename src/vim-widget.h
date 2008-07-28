@@ -33,6 +33,7 @@ G_BEGIN_DECLS
 #define VIM_IS_WIDGET_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), VIM_TYPE_WIDGET))
 #define VIM_WIDGET_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), VIM_TYPE_WIDGET, VimWidgetClass))
 #define VIM_PLUGIN_IS_READY(widget)	((widget->priv->socket_id != 0) && (widget->priv->proxy != NULL))
+#define UNTITLED_FILE "/tmp/Untitled"
 
 typedef struct _VimWidgetClass VimWidgetClass;
 typedef struct _VimWidget VimWidget;
@@ -60,6 +61,7 @@ VimEditor* vim_widget_get_document_file (VimWidget *widget, GFile* file, GError 
 VimEditor* vim_widget_get_document_filename (VimWidget *widget, const gchar* filename, GError **err);
 VimEditor* vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err);
 void vim_widget_set_current_editor (VimWidget *widget, VimEditor *editor, GError **err);
+void vim_widget_grab_focus (VimWidget *widget);
 
 G_END_DECLS
 

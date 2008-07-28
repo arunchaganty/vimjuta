@@ -26,6 +26,8 @@
 #ifndef VIM_UTIL_H_
 #define VIM_UTIL_H_
 
+void parse_vim_arr (gchar* str, int *start, int *end, gchar** ret_str);
+gchar* str_substr (const gchar* str, const gint start, const gint end);
 gchar* convert2filename (const gchar* uri);
 gchar* convert2uri (const gchar* file, const gchar* schema);
 

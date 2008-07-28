@@ -25,35 +25,43 @@ endfunction
 
 function! AnjutaPos (token)
     if (a:token == "0")
-        return 0
-    endif
-    if (a:token == ".")
+        return 1
+	elseif (a:token == ".")
         return line2byte (".") + byteidx (getline(line('.')), col('.')) -1
-    endif
-    if (a:token == "$")
+	elseif (a:token == "$")
         return line2byte ("$") + byteidx (getline(line('$')), col([line('$'),'$'])-1)
     endif
 endfunction
 
+function! AnjutaPos2Byte (pos)
+	return line2byte (a:pos[1]) + a:pos[2] + a:pos[3] - 1
+endfunction
+
+
+function! AnjutaByte2Pos (buffer, byte)
+    let curpos = getpos('.')
+    let byte = a:byte
+    exec "goto ".byte
+    let pos = getpos('.')
+    call setpos('.', curpos)
+    return pos
+endfunction
+
 function! AnjutaGetBuf (buffer,start, end)
-    if (type(a:start) == 1)
-        let l:startp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:start))
-    else
-        let l:startp = AnjutaByte2Pos(a:buffer, a:start)
-    endif
-    if (type(a:end) == 1)
-        let l:endp = AnjutaByte2Pos(a:buffer, AnjutaPos(a:end))
-    else
-        let l:endp = AnjutaByte2Pos(a:buffer, a:end)
-    endif
+	return AnjutaGetBufPos (a:buffer, AnjutaPos(a:start), AnjutaPos(a:end))
+endfunction
+
+function! AnjutaGetBufPos (buffer,start, end)
+	let startpos = AnjutaByte2Pos(a:buffer, a:start)
+	let endpos = AnjutaByte2Pos(a:buffer, a:end)
 
     let s = getpos("'s")
     let e = getpos("'e")
-    call setpos("'s", l:startp)
-    call setpos("'e", l:endp)
+    call setpos("'s", startpos)
+    call setpos("'e", endpos)
 
     let a = @z
-    's,'eyank z
+    normal `s"zy`e
     let b = @z
 
     try
@@ -66,11 +74,6 @@ function! AnjutaGetBuf (buffer,start, end)
     endtry
 
     return b
-endfunction
-
-function! AnjutaByte2Pos (buffer, byte)
-    let lineno = byte2line (a:byte)
-    return [a:buffer, lineno, a:byte - line2byte(lineno), 0,]
 endfunction
 
 function! AnjutaInsert (buffer, str, pos)
@@ -101,14 +104,152 @@ function! AnjutaErase (buffer, start, end)
     let pos1 = getpos("'s")
     let pos2 = getpos("'e")
 
-    setpos ("'s", l:startp)
-    setpos ("'e", l:endp)
+    call setpos ("'s", l:startp)
+    call setpos ("'e", l:endp)
 
-    's,'edelete
+    normal `sd`e
 
-    setpos ("'s", pos1)
-    setpos ("'e", pos2)
+    call setpos ("'s", pos1)
+    call setpos ("'e", pos2)
 endfunction
+
+function! AnjutaGoto (token)
+    if (a:token == "s")
+        call search ('}') 
+        normal %
+        redraw
+    elseif (a:token == "e")
+        call search ('{','b') 
+        normal %
+        redraw
+    elseif (a:token == "m")
+        normal %
+        redraw
+    endif
+endfunction
+
+function! AnjutaGetChar (buffer, byte)
+	let pos = AnjutaByte2Pos (a:buffer, a:byte)
+	let line = getbufline(pos[0], pos[1])[0]
+	return char2nr(line[pos[2]])
+endfunction
+
+" Gets the line containing this byte, and returns
+" it's byte extents
+" TODO: Support multiple lines.
+function! AnjutaGetLine (buffer, byte)
+	let pos = AnjutaByte2Pos (a:buffer, a:byte)
+	let line = getbufline(pos[0], pos[1])
+    if len (line) < 1
+        return string (a:byte, a:byte, "")
+    else
+        return string([line2byte(pos[1]), line2byte(pos[1]+len(line))-1, line[0]])
+    endif
+endfunction
+
+function! AnjutaRSearch (buffer, query, flags, start, end, case)
+	let case_ = 0
+	let magic_ = 0
+	if (&ignorecase)
+		if (a:case)
+			let case_ = 1
+			set noignorecase
+		endif
+	else
+		if (!a:case)
+			let case_ = 1
+			set ignorecase
+		endif
+	endif
+	if (&magic)
+		let magic_ = 1
+		set nomagic
+	endif
+	call setpos('.', AnjutaByte2Pos(a:buffer, a:end))
+	let endpos = [a:buffer] + searchpos(a:query, a:flags, byte2line(a:start)) + [0]
+	if (case_)
+		if (a:case)
+			set ignorecase
+		else
+			set noignorecase
+		endif
+	endif
+	if (magic_)
+		set magic
+	endif
+	return AnjutaPos2Byte(endpos)
+endfunction
+
+function! AnjutaSearch (buffer, query, flags, start, end, case)
+	let case_ = 0
+	let magic_ = 0
+	if (&ignorecase)
+		if (a:case)
+			let case_ = 1
+			set noignorecase
+		endif
+	else
+		if (!a:case)
+			let case_ = 1
+			set ignorecase
+		endif
+	endif
+	if (&magic)
+		let magic_ = 1
+		set nomagic
+	endif
+	call setpos('.', AnjutaByte2Pos(a:buffer, a:start))
+	let endpos = [a:buffer] + searchpos(a:query, a:flags, byte2line(a:end)) + [0]
+	if (case_)
+		if (a:case)
+			set ignorecase
+		else
+			set noignorecase
+		endif
+	endif
+	if (magic_)
+		set magic
+	endif
+	return AnjutaPos2Byte(endpos)
+endfunction
+
+" TODO: Find a way of using mode() without changing modes
+function! AnjutaSelectionGet ()
+	let start = AnjutaPos2Byte (getpos("'<"))
+	let end = AnjutaPos2Byte (getpos("'>"))
+	normal `<"*y`>
+	let text = @*
+	return string ([start] + [end] + [text])
+endfunction
+
+function! AnjutaSelectionReplace (str)
+	let start = AnjutaPos2Byte (getpos("'<"))
+	let end = AnjutaPos2Byte (getpos("'>"))
+	normal `<"*d`>
+	exec "normal`<i".a:str
+endfunction
+
+function! AnjutaSelectionMakePos (start, end)
+	call setpos("'v", AnjutaByte2Pos (0, a:start))
+	call setpos("'b", AnjutaByte2Pos (0, a:end))
+	normal `vv`b
+endfunction
+
+function! AnjutaSelectionMake (arg)
+	if (a:arg == "a")
+		normal ggVG
+	elseif (a:arg == "b")
+        call search ('}') 
+        normal v%
+	elseif (a:arg == "f")
+        normal [[v][
+	elseif (a:arg == "t")
+		let pos = [0] + searchpos('}', 'n') + [0]
+		call setpos ("'v", pos) 
+		normal v'v
+	endif
+endfunction
+
 
 " }}}
 "=============================================================================
@@ -212,4 +353,31 @@ function! AnjutaSignalMenuPopup(bufno)
     py  daemon.MenuPopup (vim.eval("a:bufno"));
 endfunction
 
+function! AnjutaSignalMenuPopup(bufno)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
+    py  daemon.MenuPopup (vim.eval("a:bufno"));
+endfunction
+
+function! AnjutaSignalFileType(bufno, filetype)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
+    py  daemon.FileType (vim.eval("a:bufno"), vim.eval("a:filetype"));
+endfunction
+
+function! AnjutaSignalInsertLeave(bufno)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
+    py  daemon.InsertLeave (vim.eval("a:bufno"));
+endfunction
+
+function! AnjutaSignalCursorHold(bufno, word)
+    if !AnjutaCheckBuf(a:bufno)
+        return
+    endif
+    py  daemon.CursorHold (vim.eval("a:bufno"), vim.eval("a:word");
+endfunction
 

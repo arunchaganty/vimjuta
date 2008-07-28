@@ -34,6 +34,12 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
 #include <libanjuta/interfaces/ianjuta-editor-multiple.h>
+#include <libanjuta/interfaces/ianjuta-editor-folds.h>
+#include <libanjuta/interfaces/ianjuta-editor-goto.h>
+#include <libanjuta/interfaces/ianjuta-editor-language.h>
+#include <libanjuta/interfaces/ianjuta-editor-line-mode.h>
+#include <libanjuta/interfaces/ianjuta-editor-search.h>
+#include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-file-savable.h>
 #include "vim-widget.h"
@@ -43,7 +49,14 @@
 #include <string.h>
 
 extern void ieditor_iface_init (IAnjutaEditorIface *iface);
-extern void imultiple_iface_init (IAnjutaEditorIface *iface);
+extern void imultiple_iface_init (IAnjutaEditorMultipleIface *iface);
+extern void ifolds_iface_init (IAnjutaEditorFoldsIface *iface);
+extern void igoto_iface_init (IAnjutaEditorGotoIface *iface);
+extern void ilanguage_iface_init (IAnjutaEditorLanguageIface *iface);
+extern void ilinemode_iface_init (IAnjutaEditorLineModeIface *iface);
+extern void isearch_iface_init (IAnjutaEditorSearchIface *iface);
+extern void iselection_iface_init (IAnjutaEditorSelectionIface *iface);
+
 extern void idocument_iface_init (IAnjutaDocumentIface *iface);
 extern ifile_iface_init (IAnjutaFileIface *iface);
 extern isave_iface_init (IAnjutaFileSavableIface *iface);
@@ -59,7 +72,9 @@ vim_editor_new (AnjutaPlugin *plugin, GFile* file)
 	VimWidget *widget;
 	GError *err = NULL;
 	
-	g_return_if_fail (file);
+	if (!file)
+		file = g_file_new_for_path (UNTITLED_FILE);
+
 	DEBUG_PRINT ("VimPlugin: Creating new editor ...");
 
 	widget = VIM_WIDGET (g_object_new(VIM_TYPE_WIDGET, NULL));
@@ -79,6 +94,13 @@ vim_editor_new (AnjutaPlugin *plugin, GFile* file)
 
 	/* Add to the documents */
 	return g_object_ref_sink (editor);
+}
+
+void
+vim_editor_update_variables (VimEditor *editor)
+{
+	editor->priv->length = vim_dbus_int_query (editor->priv->widget, 
+			"AnjutaPos('$')", NULL);
 }
 
 /* GObject */
@@ -144,6 +166,12 @@ vim_editor_class_init (VimEditorClass *klass)
 ANJUTA_TYPE_BEGIN (VimEditor, vim_editor, GTK_TYPE_OBJECT);
 ANJUTA_TYPE_ADD_INTERFACE(ieditor, IANJUTA_TYPE_EDITOR);
 ANJUTA_TYPE_ADD_INTERFACE(imultiple, IANJUTA_TYPE_EDITOR_MULTIPLE);
+ANJUTA_TYPE_ADD_INTERFACE(ifolds, IANJUTA_TYPE_EDITOR_FOLDS);
+ANJUTA_TYPE_ADD_INTERFACE(igoto, IANJUTA_TYPE_EDITOR_GOTO);
+ANJUTA_TYPE_ADD_INTERFACE(ilanguage, IANJUTA_TYPE_EDITOR_LANGUAGE);
+ANJUTA_TYPE_ADD_INTERFACE(ilinemode, IANJUTA_TYPE_EDITOR_LINE_MODE);
+ANJUTA_TYPE_ADD_INTERFACE(isearch, IANJUTA_TYPE_EDITOR_SEARCH);
+ANJUTA_TYPE_ADD_INTERFACE(iselection, IANJUTA_TYPE_EDITOR_SELECTION);
 ANJUTA_TYPE_ADD_INTERFACE(idocument, IANJUTA_TYPE_DOCUMENT);
 ANJUTA_TYPE_ADD_INTERFACE(ifile, IANJUTA_TYPE_FILE);
 ANJUTA_TYPE_ADD_INTERFACE(isave, IANJUTA_TYPE_FILE_SAVABLE);

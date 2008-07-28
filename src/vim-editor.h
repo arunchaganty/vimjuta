@@ -56,6 +56,7 @@ struct _VimEditor
 
 GType vim_editor_get_type (void) G_GNUC_CONST;
 VimEditor* vim_editor_new (AnjutaPlugin *plugin, GFile* file); 
+void vim_editor_update_variables (VimEditor *editor); 
 
 G_END_DECLS
 

@@ -29,19 +29,25 @@
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
 #include <libanjuta/interfaces/ianjuta-editor-multiple.h>
+#include <libanjuta/interfaces/ianjuta-editor-folds.h>
+#include <libanjuta/interfaces/ianjuta-editor-goto.h>
+#include <libanjuta/interfaces/ianjuta-editor-language.h>
+#include <libanjuta/interfaces/ianjuta-editor-line-mode.h>
 #include <libanjuta/interfaces/ianjuta-editor-master.h>
+#include <libanjuta/interfaces/ianjuta-editor-search.h>
+#include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include "vim-widget.h"
 #include "vim-editor.h"
 #include "vim-widget-priv.h"
 #include "vim-editor-priv.h"
 #include "vim-dbus.h"
 #include "vim-cell.h"
+#include "vim-util.h"
 
 static gint
 ieditor_get_tabsize (IAnjutaEditor *ieditor, GError **err)
 {
 	VimEditor *editor = (VimEditor*) ieditor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 4);
 	return vim_dbus_int_query (editor->priv->widget, "&tabstop", err);
 }
 
@@ -66,7 +72,6 @@ static gboolean
 ieditor_get_use_spaces (IAnjutaEditor *ieditor, GError **err)
 {
 	VimEditor *editor = (VimEditor*) ieditor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), TRUE);
 	return vim_dbus_int_query (editor->priv->widget, "&expandtab", err);
 	return TRUE;
 }
@@ -122,13 +127,11 @@ ieditor_goto_line(IAnjutaEditor *ieditor, gint line, GError **err)
 
 	g_assert (err == NULL);
 	// Create query string
-	query = g_strdup_printf (":%d ", line);
-
+	query = g_strdup_printf (":%d", line);
 	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
-	
-	// TODO: Error Handling...
-
 	g_free (query);
+
+	vim_widget_grab_focus (editor->priv->widget);
 }
 
 /* Scroll to position */
@@ -141,13 +144,11 @@ ieditor_goto_position(IAnjutaEditor *ieditor, IAnjutaIterable* icell,
 
 	g_assert (err == NULL);
 	// Create query string
-	query = g_strdup_printf (":goto %d ", ianjuta_iterable_get_position (icell, err));
-
+	query = g_strdup_printf (":goto %d", ianjuta_iterable_get_position (icell, err));
 	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
-	
-	// TODO: Error Handling...
-
 	g_free (query);
+	
+	vim_widget_grab_focus (editor->priv->widget);
 }
 
 static gchar* 
@@ -158,11 +159,10 @@ ieditor_get_text (IAnjutaEditor* ieditor,
 	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* query = NULL;
 	gchar* reply = NULL;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), NULL);
 
 	g_assert (err == NULL);
 	// Create query string
-	query = g_strdup_printf ("AnjutaGetBuf(%d, %d, %d)", 
+	query = g_strdup_printf ("AnjutaGetBufPos(%d, %d, %d)", 
 			editor->priv->bufno,
 			ianjuta_iterable_get_position (start,err), 
 			ianjuta_iterable_get_position (end,err));
@@ -181,9 +181,8 @@ ieditor_get_text_all (IAnjutaEditor* ieditor, GError **err)
 	gchar* query = NULL;
 	gchar* reply = NULL;
 
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget),NULL);
 	g_assert (err == NULL);
-	query = g_strdup_printf ("AnjutaGetBuf(%d, 0, '$')", 
+	query = g_strdup_printf ("AnjutaGetBuf(%d,'0', '$')", 
 			editor->priv->bufno);
 	reply = vim_dbus_query (editor->priv->widget, query, err);
 	
@@ -200,10 +199,9 @@ ieditor_get_position (IAnjutaEditor* ieditor, GError **err)
 	VimEditorCell *cell;
 	gchar* reply = NULL;
 	gint position;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), NULL);
 
 	g_assert (err == NULL);
-	position = vim_dbus_int_query(editor->priv->widget, "AnjutaGetPos()", err);
+	position = vim_dbus_int_query(editor->priv->widget, "AnjutaPos('.')", err);
 
 	cell = vim_cell_new (editor, position);
 	// TODO: Error Handling...
@@ -223,7 +221,6 @@ static gint
 ieditor_get_lineno(IAnjutaEditor *ieditor, GError **err)
 {
 	VimEditor *editor = (VimEditor*) ieditor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 0);
 	return vim_dbus_int_query (editor->priv->widget, "line ('.')", err);
 }
 
@@ -234,7 +231,6 @@ static gint
 ieditor_get_length(IAnjutaEditor *ieditor, GError **err)
 {
 	VimEditor *editor = (VimEditor*) ieditor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 0);
 	return vim_dbus_int_query (editor->priv->widget, "AnjutaPos('$')", err);
 }
 
@@ -243,7 +239,6 @@ static gchar*
 ieditor_get_current_word(IAnjutaEditor *ieditor, GError **err)
 {
 	VimEditor *editor = (VimEditor*) ieditor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), NULL);
 	return vim_dbus_query (editor->priv->widget, "expand('<cword>')", err);
 }
 
@@ -257,7 +252,10 @@ ieditor_insert(IAnjutaEditor *ieditor, IAnjutaIterable* icell,
 	gint position = ianjuta_iterable_get_position (icell, err);
 
 	g_assert (err == NULL);
-	query = g_strdup_printf ("AnjutaInsert ('%s',%d)", text, position-1); /* the default insert is infact an append */
+	query = g_strdup_printf ("AnjutaInsert (%d, '%s', %d)", 
+			editor->priv->bufno,
+			text, 
+			position-1); /* the default insert is infact an append */
 
 	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
 	g_free (query);
@@ -274,7 +272,9 @@ ieditor_append(IAnjutaEditor *ieditor, const gchar* text,
 	gchar* query = NULL;
 
 	g_assert (err == NULL);
-	query = g_strdup_printf ("AnjutaInsert (%d,'%s', '$')", editor->priv->bufno, text);
+	query = g_strdup_printf ("AnjutaInsert (%d,'%s', '$')", 
+			editor->priv->bufno, 
+			text);
 
 	vim_dbus_exec_without_reply (editor->priv->widget, query, err);
 	g_free (query);
@@ -289,11 +289,11 @@ ieditor_erase(IAnjutaEditor* ieditor, IAnjutaIterable* istart_cell,
 	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* reply = NULL;
 	gchar* query = NULL;
-	g_return_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget));
 
 	g_assert (err == NULL);
 	// Create query string
-	query = g_strdup_printf ("AnjutaErase(%d, %d)", 
+	query = g_strdup_printf ("AnjutaErase(%d, %d, %d)", 
+			editor->priv->bufno,
 			ianjuta_iterable_get_position (istart_cell, err), 
 			ianjuta_iterable_get_position (iend_cell, err));
 
@@ -320,7 +320,6 @@ static gint
 ieditor_get_column(IAnjutaEditor *ieditor, GError **err)
 {
 	VimEditor *editor = (VimEditor*) ieditor;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 0);
 
 	g_assert (err == NULL);
 	return vim_dbus_int_query (editor->priv->widget, "col ('.')", err);
@@ -353,7 +352,6 @@ ieditor_get_line_from_position(IAnjutaEditor *ieditor,
 {
 	VimEditor *editor = (VimEditor*) ieditor;
 	gchar* query = NULL;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), 0);
 
 	g_assert (err == NULL);
 	// Create query string
@@ -371,12 +369,11 @@ ieditor_get_line_begin_position(IAnjutaEditor *ieditor,
 	VimEditorCell *cell = NULL;
 	gint position = 0;
 	gchar* query = NULL;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), NULL);
 
 	query = g_strdup_printf ("line2byte(%d)", line);
 	position = vim_dbus_int_query (editor->priv->widget, query, err);
 
-	vim_cell_new (editor, position);
+	cell = vim_cell_new (editor, position);
 	
 	return IANJUTA_ITERABLE(cell);
 }
@@ -387,14 +384,13 @@ ieditor_get_line_end_position(IAnjutaEditor *ieditor,
 {
 	VimEditor *editor = (VimEditor*) ieditor;
 	VimEditorCell *cell = NULL;
-	gint position = 0;
+	gint position = 1;
 	gchar* query = NULL;
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), NULL);
 
 	query = g_strdup_printf ("line2byte(%d+1)", line);
 	position = vim_dbus_int_query (editor->priv->widget, query, err) - 1;
 
-	vim_cell_new (editor, position);
+	cell = vim_cell_new (editor, position);
 	
 	return IANJUTA_ITERABLE(cell);
 }
@@ -422,7 +418,6 @@ ieditor_get_end_position (IAnjutaEditor* ieditor, GError** err)
 {
 	VimEditor *editor = (VimEditor*) ieditor;
 	VimEditorCell *cell = vim_cell_new (editor, 1);
-	g_return_val_if_fail (VIM_PLUGIN_IS_READY(editor->priv->widget), IANJUTA_ITERABLE(cell));
 
 	ianjuta_iterable_last (IANJUTA_ITERABLE(cell), err);
 	
@@ -491,9 +486,9 @@ ieditor_iface_init (IAnjutaEditorIface *iface)
 /* IAnjutaEditorMultiple */
 
 static IAnjutaEditorMaster*
-imultiple_get_master (IAnjutaEditorMultiple *obj, GError **err)
+imultiple_get_master (IAnjutaEditorMultiple *imultiple, GError **err)
 {
-	VimEditor* editor = VIM_EDITOR (obj);
+	VimEditor* editor = VIM_EDITOR (imultiple);
 	return IANJUTA_EDITOR_MASTER (g_object_ref(editor->priv->widget));
 }
 
@@ -501,5 +496,449 @@ void
 imultiple_iface_init (IAnjutaEditorMultipleIface *iface)
 {
 	iface->get_master = imultiple_get_master;
+}
+
+static void
+ifolds_close_all (IAnjutaEditorFolds *ifolds, GError **err)
+{
+	VimEditor *editor = (VimEditor*) ifolds;
+
+	g_assert (err == NULL);
+	vim_dbus_exec_without_reply (editor->priv->widget, "normal zM", err);
+}
+static void
+ifolds_open_all (IAnjutaEditorFolds *ifolds, GError **err)
+{
+	VimEditor *editor = (VimEditor*) ifolds;
+
+	g_assert (err == NULL);
+	vim_dbus_exec_without_reply (editor->priv->widget, "normal zR", err);
+}
+static void
+ifolds_toggle_current (IAnjutaEditorFolds *ifolds, GError **err)
+{
+	VimEditor *editor = (VimEditor*) ifolds;
+
+	g_assert (err == NULL);
+	vim_dbus_exec_without_reply (editor->priv->widget, "normal za", err);
+}
+
+void 
+ifolds_iface_init (IAnjutaEditorFoldsIface *iface)
+{
+	iface->close_all = ifolds_close_all;
+	iface->open_all = ifolds_open_all;
+	iface->toggle_current = ifolds_toggle_current;
+}
+
+
+static void
+igoto_end_block (IAnjutaEditorGoto *igoto, GError **err)
+{
+	VimEditor *editor = (VimEditor*) igoto;
+
+	g_assert (err == NULL);
+	vim_dbus_exec_without_reply (editor->priv->widget, "call AnjutaGoto('e')", err);
+}
+
+static void
+igoto_matching_brace (IAnjutaEditorGoto *igoto, GError **err)
+{
+	VimEditor *editor = (VimEditor*) igoto;
+
+	g_assert (err == NULL);
+	vim_dbus_exec_without_reply (editor->priv->widget, "call AnjutaGoto('m')", err);
+}
+
+static void
+igoto_start_block (IAnjutaEditorGoto *igoto, GError **err)
+{
+	VimEditor *editor = (VimEditor*) igoto;
+
+	g_assert (err == NULL);
+	vim_dbus_exec_without_reply (editor->priv->widget, "call AnjutaGoto('s')", err);
+}
+
+void 
+igoto_iface_init (IAnjutaEditorGotoIface *iface)
+{
+	iface->end_block = igoto_end_block;
+	iface->matching_brace = igoto_matching_brace;
+	iface->start_block = igoto_start_block;
+}
+
+static const gchar *
+ilanguage_get_language (IAnjutaEditorLanguage *ilanguage, GError **err)
+{
+	VimEditor *editor = (VimEditor*) ilanguage;
+
+	g_assert (err == NULL);
+	return vim_dbus_query (editor->priv->widget, "&ft", err);
+}
+
+static const gchar *
+ilanguage_get_language_name (IAnjutaEditorLanguage *ilanguage, const gchar* language, GError **err)
+{
+	return language;
+}
+
+static const GList*
+ilanguage_get_supported_languages (IAnjutaEditorLanguage *ilanguage, GError **err)
+{
+	VimEditor *editor = (VimEditor*) ilanguage;
+	static GList* list = NULL;
+
+	/* A common list */
+	if (!list)
+	{
+		list = g_list_prepend (list, g_strdup_printf ("c"));
+		list = g_list_prepend (list, g_strdup_printf ("cpp"));
+		list = g_list_prepend (list, g_strdup_printf ("java"));
+		list = g_list_prepend (list, g_strdup_printf ("python"));
+		list = g_list_prepend (list, g_strdup_printf ("make"));
+		list = g_list_prepend (list, g_strdup_printf ("vala"));
+		list = g_list_prepend (list, g_strdup_printf ("html"));
+		list = g_list_prepend (list, g_strdup_printf ("sh"));
+	}
+
+	return list;
+}
+
+static void
+ilanguage_set_language (IAnjutaEditorLanguage *ilanguage, const gchar* language, GError **err)
+{
+	VimEditor *editor = (VimEditor*) ilanguage;
+	gchar *cmd = g_strdup_printf ("set ft=%s", language);
+
+	g_assert (err == NULL);
+	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
+	g_free (cmd);
+}
+
+void 
+ilanguage_iface_init (IAnjutaEditorLanguageIface *iface)
+{
+	iface->get_language = ilanguage_get_language;
+	iface->get_language_name = ilanguage_get_language_name;
+	iface->get_supported_languages = ilanguage_get_supported_languages;
+	iface->set_language = ilanguage_set_language;
+}
+
+static void
+ilinemode_convert (IAnjutaEditorLineMode *ilinemode, IAnjutaEditorLineModeType mode, GError **err)
+{
+	VimEditor *editor = (VimEditor*) ilinemode;
+	gchar *cmd;
+	g_assert (err == NULL);
+	switch (mode)
+	{
+		case IANJUTA_EDITOR_LINE_MODE_CR:
+			cmd = g_strdup_printf ("set fileformat=mac");
+			break;
+		case IANJUTA_EDITOR_LINE_MODE_CRLF:
+			cmd = g_strdup_printf ("set fileformat=dos");
+			break;
+		case IANJUTA_EDITOR_LINE_MODE_LF:
+			cmd = g_strdup_printf ("set fileformat=unix");
+			break;
+	}
+	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
+	g_free (cmd);
+}
+
+static void
+ilinemode_fix (IAnjutaEditorLineMode *ilinemode, GError **err)
+{
+	VimEditor *editor = (VimEditor*) ilinemode;
+	gchar *cmd;
+	g_assert (err == NULL);
+	/* Set the default to unix format. Seems like the best resolution */
+	cmd = g_strdup_printf ("set fileformat=unix");
+	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
+	g_free (cmd);
+}
+
+static IAnjutaEditorLineModeType
+ilinemode_get (IAnjutaEditorLineMode *ilinemode, GError **err)
+{
+	VimEditor *editor = (VimEditor*) ilinemode;
+	gchar *reply = NULL;
+
+	g_assert (err == NULL);
+	reply = vim_dbus_query (editor->priv->widget, "&fileformat", err);
+	if (strcmp (reply, "mac"))
+	{
+		g_free (reply);
+		return IANJUTA_EDITOR_LINE_MODE_CR;
+	}
+	else if (strcmp (reply, "dos"))
+	{
+		g_free (reply);
+		return IANJUTA_EDITOR_LINE_MODE_CRLF;
+	}	
+	else if (strcmp (reply, "unix"))
+	{
+		g_free (reply);
+		return IANJUTA_EDITOR_LINE_MODE_LF;
+	}
+	else
+	{
+		g_free (reply);
+		g_return_val_if_reached (IANJUTA_EDITOR_LINE_MODE_LF);
+	}
+
+}
+
+static void
+ilinemode_set (IAnjutaEditorLineMode *ilinemode, IAnjutaEditorLineModeType mode, GError **err)
+{
+	VimEditor *editor = (VimEditor*) ilinemode;
+	gchar *cmd;
+	g_assert (err == NULL);
+	switch (mode)
+	{
+		case IANJUTA_EDITOR_LINE_MODE_CR:
+			cmd = g_strdup_printf ("set fileformat=mac");
+			break;
+		case IANJUTA_EDITOR_LINE_MODE_CRLF:
+			cmd = g_strdup_printf ("set fileformat=dos");
+			break;
+		case IANJUTA_EDITOR_LINE_MODE_LF:
+			cmd = g_strdup_printf ("set fileformat=unix");
+			break;
+	}
+	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
+	g_free (cmd);
+}
+
+void 
+ilinemode_iface_init (IAnjutaEditorLineModeIface *iface)
+{
+	iface->convert = ilinemode_convert;
+	iface->fix = ilinemode_fix;
+	iface->get = ilinemode_get;
+	iface->set = ilinemode_set;
+}
+
+static gboolean
+isearch_backward (IAnjutaEditorSearch *isearch, const gchar* search,
+		gboolean case_sensitive,   IAnjutaEditorCell* start,
+		IAnjutaEditorCell* end,   IAnjutaEditorCell** result_start,
+		IAnjutaEditorCell** result_end, GError **err)
+{
+	VimEditor *editor = (VimEditor*) isearch;
+	VimEditorCell* start_ = VIM_CELL (start);
+	VimEditorCell* end_ = VIM_CELL (end);
+	gchar *cmd;
+	gint result;
+
+	cmd = g_strdup_printf ("AnjutaRSearch(%d,'%s','b', %d, %d, %d)",
+			editor->priv->bufno,
+			search, 
+			vim_cell_get_position(start_),
+			vim_cell_get_position(end_),
+			case_sensitive);
+	result = vim_dbus_int_query (editor->priv->widget, cmd, err);
+
+	if (result > 0)
+	{
+		*result_start = IANJUTA_EDITOR_CELL(vim_cell_new (editor, result));
+		*result_end = IANJUTA_EDITOR_CELL(vim_cell_new (editor, result+strlen(search)));
+		return TRUE;
+	}
+	else
+	{
+		*result_start = NULL;
+		*result_end = NULL;
+		return FALSE;
+	}
+}
+
+
+static gboolean
+isearch_forward (IAnjutaEditorSearch *isearch, const gchar* search,
+		gboolean case_sensitive,   IAnjutaEditorCell* start,
+		IAnjutaEditorCell* end,   IAnjutaEditorCell** result_start,
+		IAnjutaEditorCell** result_end, GError **err)
+{
+	VimEditor *editor = (VimEditor*) isearch;
+	VimEditorCell* start_ = VIM_CELL (start);
+	VimEditorCell* end_ = VIM_CELL (end);
+	gchar *cmd;
+	gint result;
+
+	cmd = g_strdup_printf ("AnjutaSearch(%d,'%s','', %d, %d, %d)",
+			editor->priv->bufno,
+			search, 
+			vim_cell_get_position(start_),
+			vim_cell_get_position(end_),
+			case_sensitive);
+	result = vim_dbus_int_query (editor->priv->widget, cmd, err);
+	
+	if (result > 0)
+	{
+		*result_start = IANJUTA_EDITOR_CELL(vim_cell_new (editor, result));
+		*result_end = IANJUTA_EDITOR_CELL(vim_cell_new (editor, result+strlen(search)));
+		return TRUE;
+	}
+	else
+	{
+		*result_start = NULL;
+		*result_end = NULL;
+		return FALSE;
+	}
+}
+
+
+void 
+isearch_iface_init (IAnjutaEditorSearchIface *iface)
+{
+	iface->backward = isearch_backward;
+	iface->forward = isearch_forward;
+}
+
+static gchar*
+iselection_get (IAnjutaEditorSelection *iselection, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iselection;
+	gchar *result;
+	gchar *selection;
+
+	result = vim_dbus_query (editor->priv->widget, "AnjutaSelectionGet()", err);
+	if (!strlen(result))
+	{
+		g_free(result);
+		return NULL;
+	}
+	parse_vim_arr (result, NULL, NULL, &selection);
+	g_free (result);
+	return selection;
+}
+
+static IAnjutaIterable*
+iselection_get_end (IAnjutaEditorSelection *iselection, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iselection;
+	gint end_pos;
+	gchar* result;
+	result = vim_dbus_query (editor->priv->widget, "AnjutaSelectionGet()", err);
+	if (!strlen(result))
+	{
+		g_free(result);
+		return NULL;
+	}
+	parse_vim_arr (result, NULL, &end_pos, NULL);
+	g_free (result);
+	return IANJUTA_ITERABLE(vim_cell_new (editor, end_pos));
+}
+
+static IAnjutaIterable*
+iselection_get_start (IAnjutaEditorSelection *iselection, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iselection;
+	gint start_pos;
+	gchar* result;
+	result = vim_dbus_query (editor->priv->widget, "AnjutaSelectionGet()", err);
+	if (!strlen(result))
+	{
+		g_free(result);
+		return NULL;
+	}
+	parse_vim_arr (result, &start_pos, NULL, NULL);
+	g_free (result);
+	return IANJUTA_ITERABLE(vim_cell_new (editor, start_pos));
+}
+
+static gboolean
+iselection_has_selection (IAnjutaEditorSelection *iselection, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iselection;
+	gchar *result;
+
+	result = vim_dbus_query (editor->priv->widget, "mode()", err);
+	if ((strcmp (result, "v") == 0) ||
+			(strcmp (result, "V") ==0 ))
+		return TRUE;
+	else
+		return FALSE;
+}
+
+static void
+iselection_replace (IAnjutaEditorSelection *iselection, const gchar *text,
+		gint length, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iselection;
+	gchar *text_ = str_substr (text, 0, length); 
+	gchar *cmd = g_strdup_printf ("call AnjutaSelectionReplace('%s')", text_);
+			
+	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
+	g_free (cmd);
+	g_free (text_);
+}
+
+static void
+iselection_select_all (IAnjutaEditorSelection *iselection, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iselection;
+
+	vim_dbus_exec_without_reply (editor->priv->widget, 
+			"call AnjutaSelectionMake('a')", 
+			err);
+	g_return_if_reached ();
+}
+
+static void
+iselection_select_block (IAnjutaEditorSelection *iselection, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iselection;
+	vim_dbus_exec_without_reply (editor->priv->widget, 
+			"call AnjutaSelectionMake('b')", 
+			err);
+}
+
+static void
+iselection_select_function (IAnjutaEditorSelection *iselection, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iselection;
+	vim_dbus_exec_without_reply (editor->priv->widget, 
+			"call AnjutaSelectionMake('f')", 
+			err);
+}
+
+static void
+iselection_select_to_brace (IAnjutaEditorSelection *iselection, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iselection;
+	vim_dbus_exec_without_reply (editor->priv->widget, 
+			"call AnjutaSelectionMake('b')", 
+			err);
+}
+
+static void
+iselection_set (IAnjutaEditorSelection *iselection, IAnjutaIterable* start,   IAnjutaIterable* end, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iselection;
+	VimEditorCell *start_ = VIM_CELL (start);
+	VimEditorCell *end_ = VIM_CELL (end);
+	gchar *cmd = g_strdup_printf ("call AnjutaSelectionMakePos(%d, %d)",
+			vim_cell_get_position(start_),
+			vim_cell_get_position(end_));
+	vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
+	g_free (cmd);
+}
+
+void 
+iselection_iface_init (IAnjutaEditorSelectionIface *iface)
+{
+	iface->get = iselection_get;
+	iface->get_end = iselection_get_end;
+	iface->get_start = iselection_get_start;
+	iface->has_selection = iselection_has_selection;
+	iface->replace = iselection_replace;
+	iface->select_all = iselection_select_all;
+	iface->select_block = iselection_select_block;
+	iface->select_function = iselection_select_function;
+	iface->select_to_brace = iselection_select_to_brace;
+	iface->set = iselection_set;
 }
 

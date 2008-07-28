@@ -52,6 +52,7 @@ anjuta_gvim_activate (AnjutaPlugin *plugin)
 {
 	VimPlugin *vim_plugin = ANJUTA_PLUGIN_GVIM (plugin);
 	AnjutaUI *ui;
+	gchar *filename =  anjuta_util_get_user_config_file_path ("vim-accels", NULL);
 	DEBUG_PRINT ("VimPlugin: Activating VimPlugin plugin ...");
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
 	anjuta_ui_add_action_group_entries (ui, "ActionGroupVimFile",
@@ -60,13 +61,21 @@ anjuta_gvim_activate (AnjutaPlugin *plugin)
 										G_N_ELEMENTS (actions_test),
 										GETTEXT_PACKAGE, TRUE, plugin);
 	vim_plugin->uiid = anjuta_ui_merge (ui, UI_FILE);
+
 	return TRUE;
 }
 
 static gboolean
 anjuta_gvim_deactivate (AnjutaPlugin *plugin)
 {
+	AnjutaUI *ui;
+	VimPlugin *vim_plugin = ANJUTA_PLUGIN_GVIM (plugin);
+	ui = anjuta_shell_get_ui (plugin->shell, NULL);
+	gchar *filename =  anjuta_util_get_user_config_file_path ("vim-accels", NULL);
 	DEBUG_PRINT ("VimPlugin: Dectivating VimPlugin plugin ...");
+
+	ui = anjuta_shell_get_ui (plugin->shell, NULL);
+	anjuta_ui_unmerge (ui, vim_plugin->uiid);
 	return TRUE;
 }
 

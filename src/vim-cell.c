@@ -23,18 +23,25 @@
  */
 
 #include <libanjuta/interfaces/ianjuta-iterable.h>
+#include <libanjuta/interfaces/ianjuta-editor-cell.h>
+#include <libanjuta/interfaces/ianjuta-editor-cell-style.h>
 #include "vim-widget.h"
 #include "vim-editor.h"
 #include "vim-widget-priv.h"
 #include "vim-editor-priv.h"
 #include "vim-cell.h"
 #include "vim-dbus.h"
+#include "vim-util.h"
 
 static GObjectClass* parent_class = NULL;
 
 struct _VimEditorCellPrivate {
 	VimEditor *editor;
 	gint position;
+	/* Used to buffer actions */
+	gint begin;
+	gint end;
+	gchar* line;
 };
 
 
@@ -53,8 +60,7 @@ iiter_next (IAnjutaIterable* iter, GError** e)
 	VimEditorCell* cell = VIM_CELL(iter);
 	gint final_pos;
 
-	// FIXME: Seems expensive
-	final_pos = vim_dbus_int_query (cell->priv->editor->priv->widget, "AnjutaPos('$')", e);
+	final_pos = cell->priv->editor->priv->length;
 	if (cell->priv->position >= final_pos) 
 	{
 		cell->priv->position = final_pos;
@@ -70,8 +76,7 @@ iiter_previous (IAnjutaIterable* iter, GError** e)
 {
 	VimEditorCell* cell = VIM_CELL(iter);
 	gint begin_pos;
-	// FIXME: Seems highly sub-optimal
-	begin_pos = vim_dbus_int_query (cell->priv->editor->priv->widget, "AnjutaPos('0')", e);
+	begin_pos = 1;
 	if (cell->priv->position >= begin_pos) 
 	{
 		cell->priv->position = begin_pos;
@@ -86,8 +91,7 @@ iiter_last (IAnjutaIterable* iter, GError** e)
 {
 	VimEditorCell* cell = VIM_CELL(iter);
 	gint final_pos;
-	// FIXME: Seems highly sub-optimal
-	final_pos = vim_dbus_int_query (cell->priv->editor->priv->widget, "AnjutaPos('$')", e);
+	final_pos = cell->priv->editor->priv->length;
 	if (cell->priv->position == final_pos) 
 		return FALSE;
 	cell->priv->position = final_pos;
@@ -102,7 +106,7 @@ iiter_foreach (IAnjutaIterable* iter, GFunc callback, gpointer data, GError** e)
 	
 	/* Save current position */
 	saved = cell->priv->position;
-	cell->priv->position = 0;
+	cell->priv->position = 1;
 	while (ianjuta_iterable_next (iter, NULL))
 	{
 		(*callback)(cell, data);
@@ -119,16 +123,16 @@ iiter_set_position (IAnjutaIterable* iter, gint position, GError** e)
 	gint final_pos;
 	VimEditorCell* cell = VIM_CELL(iter);
 
-	final_pos = vim_dbus_int_query (cell->priv->editor->priv->widget, "AnjutaPos('$')", e);
+	final_pos = cell->priv->editor->priv->length;
 	
-	if (position < 0)
+	if (position < 1)
 	{
 		/* Set to end-iter (length of the doc) */
 		cell->priv->position = final_pos;
 		return TRUE;
 	}
 
-	if (position > final_pos) 
+	if (position < final_pos) 
 	{
 		cell->priv->position = position;
 		return  TRUE;
@@ -141,7 +145,7 @@ iiter_set_position (IAnjutaIterable* iter, gint position, GError** e)
 static gint
 iiter_get_position (IAnjutaIterable* iter, GError** e)
 {
-	gint char_position = 0;
+	gint char_position = 1;
 	
 	VimEditorCell* cell = VIM_CELL(iter);
 
@@ -152,7 +156,7 @@ static gint
 iiter_get_length (IAnjutaIterable* iter, GError** e)
 {
 	VimEditorCell* cell = VIM_CELL(iter);
-	return vim_dbus_int_query (cell->priv->editor->priv->widget, "AnjutaPos('$')", e);
+	return cell->priv->editor->priv->length;
 }
 
 static IAnjutaIterable *
@@ -193,6 +197,124 @@ iiter_diff (IAnjutaIterable *iter, IAnjutaIterable *iter2, GError **e)
 	return cell->priv->position - cell2->priv->position;	
 }
 
+static void
+iiter_iface_init(IAnjutaIterableIface* iface)
+{
+	iface->first = iiter_first;
+	iface->next = iiter_next;
+	iface->previous = iiter_previous;
+	iface->last = iiter_last;
+	iface->foreach = iiter_foreach;
+	iface->set_position = iiter_set_position;
+	iface->get_position = iiter_get_position;
+	iface->get_length = iiter_get_length;
+	iface->clone = iiter_clone;
+	iface->assign = iiter_assign;
+	iface->compare = iiter_compare;
+	iface->diff = iiter_diff;
+}
+
+/* TODO: Incomplete */
+static IAnjutaEditorAttribute
+icell_get_attribute (IAnjutaEditorCell *icell, GError **err)
+{
+	VimEditorCell* cell = VIM_CELL(icell);
+	return IANJUTA_EDITOR_TEXT;
+}
+
+/* TODO: Multibyte support */
+static gchar
+icell_get_char (IAnjutaEditorCell *icell, gint char_index, GError **err)
+{
+	VimEditorCell* cell = VIM_CELL(icell);
+	gchar chr;
+	gchar* result ;
+	// FIXME: Seems highly sub-optimal
+
+	if (!cell->priv->line || cell->priv->begin > cell->priv->position || cell->priv->end < cell->priv->position)
+	{
+		gint len;
+		gchar* tmp_str;
+		gchar** str_array;
+		if (cell->priv->line)
+		{
+			g_free (cell->priv->line);
+			cell->priv->line = NULL;
+		}
+		gchar* cmd = g_strdup_printf ("AnjutaGetLine(%d,%d)", cell->priv->editor->priv->bufno, 
+				cell->priv->position);
+		/* result is in the format [begin, end, 'line'] */
+		result = vim_dbus_query (cell->priv->editor->priv->widget, cmd, err);
+		if (!result) 
+		{
+			g_free (cmd);
+			g_free (result);
+			return 0;
+		}
+		parse_vim_arr (result, &cell->priv->begin, &cell->priv->end, &cell->priv->line);
+		
+		g_free (cmd);
+		g_free (result);
+	}
+
+	chr = cell->priv->line [cell->priv->position - cell->priv->begin];
+
+	return chr;
+}
+
+static gchar *
+icell_get_character (IAnjutaEditorCell *icell, GError **err)
+{
+	VimEditorCell* cell = VIM_CELL(icell);
+	gchar chr = icell_get_char (icell, 0, err);
+
+	return g_strdup_printf("%c",chr);
+}
+
+static gint
+icell_get_length (IAnjutaEditorCell *icell, GError **err)
+{
+	VimEditorCell* cell = VIM_CELL(icell);
+	/* TODO: Support multibyte */
+
+	return 1;
+}
+
+static void
+icell_iface_init(IAnjutaEditorCellIface* iface)
+{
+	iface->get_attribute = icell_get_attribute;
+	iface->get_char = icell_get_char;
+	iface->get_character = icell_get_character;
+	iface->get_length = icell_get_length;
+}
+
+static gchar*
+istyle_get_background_color (IAnjutaEditorCellStyle *istyle, GError **err)
+{
+	return g_strdup_printf ("#000000");
+}
+
+static gchar*
+istyle_get_color (IAnjutaEditorCellStyle *istyle, GError **err)
+{
+	return g_strdup_printf ("#FFFFFF");
+}
+
+static gchar*
+istyle_get_font_description (IAnjutaEditorCellStyle *istyle, GError **err)
+{
+	return g_strdup_printf ("Monospace 10");
+}
+
+static void
+istyle_iface_init(IAnjutaEditorCellStyleIface* iface)
+{
+	iface->get_background_color = istyle_get_background_color;
+	iface->get_color = istyle_get_color;
+	iface->get_font_description = istyle_get_font_description;
+}
+
 /* Class Implementation */
 
 VimEditorCell*
@@ -202,6 +324,8 @@ vim_cell_new (VimEditor* editor, gint position)
 	
 	g_return_val_if_fail (VIM_IS_EDITOR (editor), NULL);
 	g_return_val_if_fail (position >= 0, NULL);
+	if (position == 0)
+		position = 1;
 	
 	cell = VIM_CELL (g_object_new(VIM_TYPE_CELL, NULL));
 	
@@ -223,7 +347,8 @@ vim_cell_set_position (VimEditorCell *cell, gint position)
 {
 	g_return_if_fail (VIM_IS_CELL(cell));
 	g_return_if_fail (position >= 0);
-	
+	if (position == 0)
+		position = 1;
 	iiter_set_position (IANJUTA_ITERABLE(cell), position, NULL);
 }
 
@@ -260,24 +385,9 @@ vim_cell_class_init (VimEditorCellClass *klass)
 	object_class->finalize = vim_cell_finalize;
 }
 
-static void
-iiter_iface_init(IAnjutaIterableIface* iface)
-{
-	iface->first = iiter_first;
-	iface->next = iiter_next;
-	iface->previous = iiter_previous;
-	iface->last = iiter_last;
-	iface->foreach = iiter_foreach;
-	iface->set_position = iiter_set_position;
-	iface->get_position = iiter_get_position;
-	iface->get_length = iiter_get_length;
-	iface->clone = iiter_clone;
-	iface->assign = iiter_assign;
-	iface->compare = iiter_compare;
-	iface->diff = iiter_diff;
-}
-
 ANJUTA_TYPE_BEGIN (VimEditorCell, vim_cell, G_TYPE_OBJECT);
 ANJUTA_TYPE_ADD_INTERFACE(iiter, IANJUTA_TYPE_ITERABLE);
+ANJUTA_TYPE_ADD_INTERFACE(icell, IANJUTA_TYPE_EDITOR_CELL);
+ANJUTA_TYPE_ADD_INTERFACE(istyle, IANJUTA_TYPE_EDITOR_CELL_STYLE);
 ANJUTA_TYPE_END;
 

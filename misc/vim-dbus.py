@@ -18,6 +18,15 @@ class DBusDaemon(dbus.service.Object):
                 object_path)
 
     @dbus.service.method(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            in_signature='s', out_signature='')
+    def ExecuteCmdWithoutReply(self, cmd):
+        result = ''
+        try:
+            result = vim.command(cmd)
+        except vim.error:
+            pass
+
+    @dbus.service.method(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             in_signature='s', out_signature='s')
     def ExecuteCmd(self, cmd):
         result = ''
@@ -96,6 +105,21 @@ class DBusDaemon(dbus.service.Object):
     @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
             signature='u')
     def MenuPopup(self, bufno):
+        pass
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='us')
+    def FileType(self, bufno, filetype):
+        pass
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='u')
+    def InsertLeave(self, bufno):
+        pass
+
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='us')
+    def CursorHold(self, bufno, word):
         pass
 
 # Run the daemon

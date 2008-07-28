@@ -51,6 +51,12 @@ extern void vim_signal_buf_leave_cb (DBusGProxy *proxy, const guint,
 extern void vim_signal_vim_leave_cb (DBusGProxy *proxy, VimWidget *widget);
 extern void vim_signal_menu_popup_cb (DBusGProxy *proxy, const guint, 
 		VimWidget *widget);
+extern void vim_signal_file_type_cb (DBusGProxy *proxy, const guint, 
+		const gchar* filetype, VimWidget *widget);
+extern void vim_signal_insert_leave_cb (DBusGProxy *proxy, const guint, 
+		VimWidget *widget);
+extern void vim_signal_cursor_hold_cb (DBusGProxy *proxy, const guint, 
+		const gchar* word, VimWidget *widget);
 
 /* An implementation to queue up some commands to be run at later time  Mainly
  * used before DBus initializes*/
@@ -172,7 +178,20 @@ vim_dbus_connect_cb (DBusGProxy *proxy,
 									"MenuPopup",
 									G_TYPE_UINT,
 									G_TYPE_INVALID);
-
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"FileType",
+									G_TYPE_UINT,
+									G_TYPE_STRING,
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"InsertLeave",
+									G_TYPE_UINT,
+									G_TYPE_INVALID);
+		dbus_g_proxy_add_signal (widget->priv->proxy,
+									"CursorHold",
+									G_TYPE_UINT,
+									G_TYPE_STRING,
+									G_TYPE_INVALID);
 
 		/* Connect Signals */
 		dbus_g_proxy_connect_signal (widget->priv->proxy,
@@ -223,6 +242,21 @@ vim_dbus_connect_cb (DBusGProxy *proxy,
 		dbus_g_proxy_connect_signal (widget->priv->proxy,
 									"MenuPopup",
 									G_CALLBACK(vim_signal_menu_popup_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
+									"FileType",
+									G_CALLBACK(vim_signal_file_type_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
+									"InsertLeave",
+									G_CALLBACK(vim_signal_insert_leave_cb),
+									widget,
+									NULL);
+		dbus_g_proxy_connect_signal (widget->priv->proxy,
+									"CursorHold",
+									G_CALLBACK(vim_signal_cursor_hold_cb),
 									widget,
 									NULL);
 
@@ -381,7 +415,7 @@ vim_dbus_exec_without_reply (VimWidget* widget, gchar* cmd, GError **error)
 	}
 	else	
 		dbus_g_proxy_call_no_reply (widget->priv->proxy,
-				"ExecuteCmd",
+				"ExecuteCmdWithoutReply",
 				G_TYPE_STRING, cmd,
 				G_TYPE_INVALID);
 }

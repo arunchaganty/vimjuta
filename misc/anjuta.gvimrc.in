@@ -31,5 +31,11 @@ augroup Anjuta
     au VimLeave     *   call AnjutaSignalVimLeave()
 
     au MenuPopup    *   call AnjutaSignalMenuPopup(expand('<abuf>'))
+
+	au FileType	*	call AnjutaSignalFileType(expand('<abuf>'), expand('<amatch>'))
+
+	au InsertLeave	*	call AnjutaSignalInsertLeave(expand('<abuf>'))
+	au CursorHold,CursorHoldI	*	call AnjutaSignalCursorHold(expand('<abuf>'), expand ('<cword>'))
+
 augroup END
 

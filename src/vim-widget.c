@@ -35,7 +35,6 @@
 
 #define VIM_WIDGET_PRIVATE(o)  (G_TYPE_INSTANCE_GET_PRIVATE ((o), VIM_TYPE_WIDGET, VimWidgetPrivate))
 #define GVIMRC_FILE ANJUTA_DATA_DIR"/gvim/anjuta.gvimrc"
-#define UNTITLED_FILE "/tmp/Untitled"
 
 static GObjectClass* parent_class;
 
@@ -63,11 +62,11 @@ vim_widget_add_document_complete (VimWidget *widget, VimEditor *editor)
 		{
 			g_list_free(widget->priv->unloaded);
 			widget->priv->unloaded = NULL;
-
 		}
 	}
 
 	widget->priv->documents = g_list_prepend (widget->priv->documents, editor);
+	vim_editor_update_variables (editor);
 	g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
 			"document-added",
 			G_OBJECT(editor));
@@ -80,7 +79,7 @@ vim_widget_remove_document (VimWidget *widget, VimEditor *editor, GError **err)
 	g_return_if_fail (editor != NULL);
 	if (vim_widget_has_editor (widget, editor))
 	{
-		gchar* cmd = g_strdup_printf (":bd %d", editor->priv->bufno);
+		gchar* cmd = g_strdup_printf (":bd! %d", editor->priv->bufno);
 		vim_dbus_exec_without_reply (widget, cmd, err);
 		g_free (cmd);
 	}
@@ -249,6 +248,34 @@ vim_widget_connect_plug (VimWidget *widget)
 		/* Connect callbacks */
 }
 
+static gboolean
+vim_widget_focus_cb (VimWidget *widget, GtkDirectionType dir)
+{
+    switch (dir)
+    {
+        case GTK_DIR_TAB_FORWARD:
+            g_print ("f");
+            break;
+        case GTK_DIR_TAB_BACKWARD:
+            g_print ("b");
+            break;
+        case GTK_DIR_UP:
+            g_print ("u");
+            break;
+        case GTK_DIR_DOWN:
+            g_print ("d");
+            break;
+        case GTK_DIR_LEFT:
+            g_print ("l");
+            break;
+        case GTK_DIR_RIGHT:
+            g_print ("r");
+            break;
+    }
+    g_print ("\n");
+    return TRUE;
+}
+
 gboolean
 vim_widget_has_editor (VimWidget *widget, VimEditor *editor)
 {
@@ -284,6 +311,10 @@ vim_widget_close_all (VimWidget *widget)
 		vim_widget_remove_document_complete (widget, editor);
 		list = widget->priv->documents;
 	}
+}
+
+void vim_widget_grab_focus (VimWidget *widget) {
+	gtk_widget_grab_focus (GTK_WIDGET(widget->priv->socket));
 }
 
 /* IAnjutaEditorMaster */
@@ -498,6 +529,28 @@ vim_signal_menu_popup_cb (DBusGProxy *proxy, const guint bufno,
 	/* Do nothing, yet */
 }
 
+void vim_signal_file_type_cb (DBusGProxy *proxy, const guint bufno, 
+		const gchar* filetype, VimWidget *widget)
+{
+	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
+	/* Do nothing, yet */
+}
+
+/* TODO: Send more data */
+void vim_signal_insert_leave_cb (DBusGProxy *proxy, const guint bufno, 
+		VimWidget *widget)
+{
+	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
+	vim_editor_update_variables (editor);
+}
+
+void vim_signal_cursor_hold_cb (DBusGProxy *proxy, const guint bufno, 
+		const gchar* word, VimWidget *widget)
+{
+	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
+	/* Do nothing, yet */
+}
+
 static GObject*
 vim_widget_constructor ( GType   type,
 						guint   n_construct_properties,
@@ -529,6 +582,10 @@ vim_widget_constructor ( GType   type,
 	g_signal_connect_after (widget,
 						"realize",
 						G_CALLBACK(vim_widget_connect_plug),
+						NULL);
+	g_signal_connect_after (widget->priv->socket,
+						"focus",
+						G_CALLBACK(vim_widget_focus_cb),
 						NULL);
 	
 	// Now hook in DBus

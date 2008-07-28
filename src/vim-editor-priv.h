@@ -33,6 +33,9 @@ struct _VimEditorPrivate
 	GFile *file;
 	gint bufno;
 	VimWidget *widget; /* Note, this is a singleton */
+
+	/* Buffered values */
+	glong length;
 };
 
 #endif /* _VIM_EDITOR_PRIV_H_ */
