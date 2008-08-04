@@ -122,6 +122,11 @@ class DBusDaemon(dbus.service.Object):
     def CursorHold(self, bufno, word):
         pass
 
+    @dbus.service.signal(dbus_interface=DBUS_IFACE_EDITOR_REMOTE,
+            signature='uuu')
+    def MarkChanged(self, bufno, handle, state):
+        pass
+
 # Run the daemon
 if __name__ == "__main__":
     import thread

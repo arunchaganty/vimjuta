@@ -36,6 +36,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-master.h>
 #include <libanjuta/interfaces/ianjuta-editor-search.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
+#include <libanjuta/interfaces/ianjuta-markable.h>
 #include "vim-widget.h"
 #include "vim-editor.h"
 #include "vim-widget-priv.h"
@@ -43,6 +44,12 @@
 #include "vim-dbus.h"
 #include "vim-cell.h"
 #include "vim-util.h"
+
+#define VIM_EDITOR_LINEMARK 1
+#define VIM_EDITOR_BREAKPOINT_ENABLED 2
+#define VIM_EDITOR_BREAKPOINT_DISABLED 3
+#define VIM_EDITOR_PCMARK 4
+#define VIM_EDITOR_BOOKMARK 5
 
 static gint
 ieditor_get_tabsize (IAnjutaEditor *ieditor, GError **err)
@@ -940,5 +947,148 @@ iselection_iface_init (IAnjutaEditorSelectionIface *iface)
 	iface->select_function = iselection_select_function;
 	iface->select_to_brace = iselection_select_to_brace;
 	iface->set = iselection_set;
+}
+
+struct _VimEditorMark {
+    guint id;
+    guint location;
+    IAnjutaMarkableMarker marker;
+};
+
+typedef struct _VimEditorMark VimEditorMark;
+
+VimEditorMark* vim_editor_mark_new (IAnjutaMarkableMarker marker, guint location, guint id)
+{
+    VimEditorMark *mark_ = g_new0(VimEditorMark, 1);
+    mark_->location = location;
+    mark_->marker = marker;
+    mark_->id = id;
+    return mark_;
+}
+
+gint
+vim_editor_mark_compare_id (VimEditorMark *mark1, gint *id)
+{
+    if (mark1->id == *id)
+        return 0;
+    else if (mark1->id > *id)
+        return 1;
+    else if (mark1->id < *id)
+        return -1;
+}
+
+gint
+vim_editor_mark_compare_loc (VimEditorMark *mark1, gint *location)
+{
+    if (mark1->location == *location)
+        return 0;
+    else if (mark1->location > *location)
+        return 1;
+    else if (mark1->location < *location)
+        return -1;
+}
+
+/* For the debugger only */
+vim_editor_mark_changed (gint bufno, gint id, gint type)
+{
+}
+
+static void
+imarkable_unmark (IAnjutaMarkable *imarkable, gint location,   IAnjutaMarkableMarker marker, GError **err)
+{
+	VimEditor *editor = (VimEditor*) imarkable;
+    VimEditorMark *mark;
+    GList *node = g_list_find_custom (editor->priv->marks, &location, (GCompareFunc)vim_editor_mark_compare_loc);
+    if (!node) return;
+    mark = (VimEditorMark*) node->data;
+    editor->priv->marks = g_list_remove (editor->priv->marks, node);
+    gchar *cmd = g_strdup_printf ("call AnjutaMarkRemove(%d, %d)",
+            editor->priv->bufno,
+            mark->id);
+    vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
+}
+
+static void
+imarkable_delete_all_markers (IAnjutaMarkable *imarkable, IAnjutaMarkableMarker marker, GError **err)
+{
+	VimEditor *editor = (VimEditor*) imarkable;
+    GList* node;
+    for (node = editor->priv->marks; node != NULL ; node = g_list_next(node))
+    {
+        VimEditorMark *mark_ = (VimEditorMark*) node->data;
+        if (mark_->marker == marker) imarkable_unmark (imarkable, mark_->location, marker, err);
+    }
+}
+
+static gboolean
+imarkable_is_marker_set (IAnjutaMarkable *imarkable, gint location,   IAnjutaMarkableMarker marker, GError **err)
+{
+	VimEditor *editor = (VimEditor*) imarkable;
+
+    if (g_list_find_custom (editor->priv->marks, &location, (GCompareFunc)vim_editor_mark_compare_loc))
+        return TRUE;
+    else
+        return FALSE;
+}
+
+static gint
+imarkable_location_from_handle (IAnjutaMarkable *imarkable, gint handle, GError **err)
+{
+	VimEditor *editor = (VimEditor*) imarkable;
+    VimEditorMark *mark;
+    GList *node = g_list_find_custom (editor->priv->marks, &handle, (GCompareFunc)vim_editor_mark_compare_id);
+    if (!node) return -1;
+    mark = (VimEditorMark*) node->data;
+    gchar *cmd = g_strdup_printf ("AnjutaMarkGetLine(%d, %d)",
+            editor->priv->bufno,
+            handle);
+    mark->location = vim_dbus_int_query (editor->priv->widget, cmd, err);
+    return mark->location;
+}
+
+static gint
+imarkable_mark (IAnjutaMarkable *imarkable, gint location,   IAnjutaMarkableMarker marker, GError **err)
+{
+	VimEditor *editor = (VimEditor*) imarkable;
+    static gint id = 1;
+    gint type;
+    switch (marker)
+    {
+        case IANJUTA_MARKABLE_LINEMARKER:
+            type = 1;
+            break;
+        case IANJUTA_MARKABLE_BREAKPOINT_ENABLED:
+            type = 2;
+            break;
+        case IANJUTA_MARKABLE_BREAKPOINT_DISABLED:
+            type = 3;
+            break;
+        case IANJUTA_MARKABLE_PROGRAM_COUNTER:
+            type = 4;
+            break;
+        case IANJUTA_MARKABLE_BOOKMARK:
+            type = 5;
+            break;
+        default:
+            return;
+    }
+    editor->priv->marks = g_list_prepend (editor->priv->marks, vim_editor_mark_new (marker, location, id));
+    gchar *cmd = g_strdup_printf ("AnjutaMarkSet(%d, %d, %d, %d)",
+            editor->priv->bufno,
+            id,
+            type,
+            location);
+    vim_dbus_int_query (editor->priv->widget, cmd, err);
+    return id++;
+}
+
+void 
+imarkable_iface_init (IAnjutaMarkableIface *iface)
+{
+	iface->delete_all_markers = imarkable_delete_all_markers;
+	iface->is_marker_set = imarkable_is_marker_set;
+	iface->location_from_handle = imarkable_location_from_handle;
+	iface->mark = imarkable_mark;
+	iface->unmark = imarkable_unmark;
 }
 

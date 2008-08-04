@@ -42,6 +42,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-file-savable.h>
+#include <libanjuta/interfaces/ianjuta-markable.h>
 #include "vim-widget.h"
 #include "vim-editor.h"
 #include "vim-widget-priv.h"
@@ -60,6 +61,8 @@ extern void iselection_iface_init (IAnjutaEditorSelectionIface *iface);
 extern void idocument_iface_init (IAnjutaDocumentIface *iface);
 extern ifile_iface_init (IAnjutaFileIface *iface);
 extern isave_iface_init (IAnjutaFileSavableIface *iface);
+
+extern imarkable_iface_init (IAnjutaMarkableIface *iface);
 
 #define VIM_EDITOR_PRIVATE(o)  (G_TYPE_INSTANCE_GET_PRIVATE ((o), VIM_TYPE_EDITOR, VimEditorPrivate))
 
@@ -175,4 +178,5 @@ ANJUTA_TYPE_ADD_INTERFACE(iselection, IANJUTA_TYPE_EDITOR_SELECTION);
 ANJUTA_TYPE_ADD_INTERFACE(idocument, IANJUTA_TYPE_DOCUMENT);
 ANJUTA_TYPE_ADD_INTERFACE(ifile, IANJUTA_TYPE_FILE);
 ANJUTA_TYPE_ADD_INTERFACE(isave, IANJUTA_TYPE_FILE_SAVABLE);
+ANJUTA_TYPE_ADD_INTERFACE(imarkable, IANJUTA_TYPE_MARKABLE);
 ANJUTA_TYPE_END;

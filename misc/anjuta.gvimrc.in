@@ -14,6 +14,13 @@ set guioptions+=c
 pyfile @datadir@/vim-dbus.py
 source @datadir@/anjuta-gvim.vim
 
+" Define the markers
+sign define anjuta-linemark icon=@datadir@/anjuta-linemark-16.png
+sign define anjuta-breakpoint-enabled icon=@datadir@/anjuta-breakpoint-enabled-16.png
+sign define anjuta-breakpoint-disabled icon=@datadir@/anjuta-breakpoint-disabled-16.png
+sign define anjuta-pcmark icon=@datadir@/anjuta-pcmark-16.png
+sign define anjuta-bookmark icon=@datadir@/anjuta-bookmark-16.png
+
 " Setup up autocommands to fire DBus signals
 augroup Anjuta
     au!
