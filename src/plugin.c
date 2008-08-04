@@ -61,6 +61,7 @@ anjuta_gvim_activate (AnjutaPlugin *plugin)
 										G_N_ELEMENTS (actions_test),
 										GETTEXT_PACKAGE, TRUE, plugin);
 	vim_plugin->uiid = anjuta_ui_merge (ui, UI_FILE);
+    anjuta_ui_unload_accels (ui);
 
 	return TRUE;
 }
@@ -76,6 +77,7 @@ anjuta_gvim_deactivate (AnjutaPlugin *plugin)
 
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
 	anjuta_ui_unmerge (ui, vim_plugin->uiid);
+    anjuta_ui_load_accels ();
 	return TRUE;
 }
 
