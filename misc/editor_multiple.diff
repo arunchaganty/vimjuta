@@ -1,6 +1,6 @@
 Index: plugins/document-manager/anjuta-docman.c
 ===================================================================
---- plugins/document-manager/anjuta-docman.c	(revision 4097)
+--- plugins/document-manager/anjuta-docman.c	(revision 4131)
 +++ plugins/document-manager/anjuta-docman.c	(working copy)
 @@ -27,6 +27,8 @@
  #include <libanjuta/interfaces/ianjuta-markable.h>
@@ -566,12 +566,13 @@ Index: plugins/document-manager/anjuta-docman.c
  		node = g_list_next (node);
  	}
  	return NULL;
-@@ -1103,11 +1333,12 @@
+@@ -1103,11 +1333,13 @@
  		if (page)
  		{
  			gint page_num;
 +			gboolean change_page = TRUE;
 +			AnjutaDocmanPage *oldpage;
++            GtkWidget *doc_widget;
 +			oldpage = docman->priv->cur_page;
  
  			if (defdoc != NULL)
@@ -581,7 +582,7 @@ Index: plugins/document-manager/anjuta-docman.c
  				if (oldpage)
  				{
  					oldpage->is_current = FALSE;
-@@ -1121,32 +1352,43 @@
+@@ -1121,32 +1353,46 @@
  			}
  
  			docman->priv->current_document = doc;
@@ -598,6 +599,7 @@ Index: plugins/document-manager/anjuta-docman.c
 +				ianjuta_editor_master_set_current_document (imaster, doc, NULL);
 +				g_object_unref (imaster);
 +				change_page = (page != oldpage);
++                doc_widget = GTK_WIDGET(imaster);
  			}
 -			page_num = gtk_notebook_page_num (GTK_NOTEBOOK (docman),
 -											  page->widget);
@@ -608,6 +610,8 @@ Index: plugins/document-manager/anjuta-docman.c
 -			g_signal_handlers_unblock_by_func (G_OBJECT (docman),
 -											  (gpointer) on_notebook_switch_page,
 -											  (gpointer) docman);
++            else
++                doc_widget = GTK_WIDGET(doc);
  
 -			if (anjuta_preferences_get_int (ANJUTA_PREFERENCES (docman->priv->preferences),
 -											EDITOR_TABS_ORDERING))
@@ -640,14 +644,14 @@ Index: plugins/document-manager/anjuta-docman.c
 +												EDITOR_TABS_ORDERING))
 +					anjuta_docman_order_tabs (docman);
 +
-+				gtk_widget_grab_focus (GTK_WIDGET (doc));
++				gtk_widget_grab_focus (doc_widget);
 +				anjuta_docman_grab_text_focus (docman);
 +				ianjuta_document_grab_focus (IANJUTA_DOCUMENT (doc), NULL);
 +			}
  		}
  	}
  	else /* doc == NULL */
-@@ -1322,8 +1564,24 @@
+@@ -1322,8 +1568,24 @@
  		AnjutaDocmanPage *page;
  
  		page = (AnjutaDocmanPage *) node->data;
@@ -673,7 +677,7 @@ Index: plugins/document-manager/anjuta-docman.c
  			g_free (fname);
  			return ianjuta_file_get_file (IANJUTA_FILE (page->doc), NULL);
  		}
-@@ -1346,19 +1604,40 @@
+@@ -1346,19 +1608,40 @@
  	{
  		AnjutaDocmanPage* page;
  		page = (AnjutaDocmanPage *)node->data;
@@ -708,7 +712,7 @@ Index: plugins/document-manager/anjuta-docman.c
 +				IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL);
 +				if (ianjuta_editor_master_has_document (imaster, doc, NULL))
 +				{
-+					ianjuta_editor_master_set_current_document (imaster, page->doc, NULL);
++					ianjuta_editor_master_set_current_document (imaster, doc, NULL);
 +
 +					/* The page may still not be the editor tab */
 +					if (curindx != gtk_notebook_get_current_page (GTK_NOTEBOOK (docman)))
@@ -723,7 +727,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		}
  		node = g_list_next (node);
  	}
-@@ -1381,7 +1660,7 @@
+@@ -1381,7 +1664,7 @@
  	page = anjuta_docman_get_page_for_document (docman, doc);
  	if (!page || page->label == NULL || page->menu_label == NULL)
  		return;
@@ -732,7 +736,7 @@ Index: plugins/document-manager/anjuta-docman.c
  	if (!ianjuta_file_savable_is_dirty(IANJUTA_FILE_SAVABLE (doc), NULL))
  	{
  		dirty_char = "";
-@@ -1439,9 +1718,25 @@
+@@ -1439,9 +1722,25 @@
  		if (IANJUTA_IS_EDITOR (page->doc))
  		{
  			IAnjutaEditor* te;
@@ -761,7 +765,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		}
  	}
  }
-@@ -1458,7 +1753,23 @@
+@@ -1458,7 +1757,23 @@
  		page = (AnjutaDocmanPage *) node->data;
  		if (IANJUTA_IS_EDITOR (page->doc))
  		{
@@ -786,7 +790,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		}
  	}
  }
-@@ -1540,7 +1851,16 @@
+@@ -1540,7 +1855,16 @@
  		{
  			page = node->data;
  			tab_labels[i].m_widget = page->widget; /* CHECKME needed ? */
@@ -804,7 +808,7 @@ Index: plugins/document-manager/anjuta-docman.c
  			node = g_list_next (node);
  		}
  	}
-@@ -1576,16 +1896,42 @@
+@@ -1576,16 +1900,42 @@
  				IAnjutaDocument *doc;
  				GFile* doc_file;
  
@@ -853,7 +857,7 @@ Index: plugins/document-manager/anjuta-docman.c
  				}
  			}
  		}
-@@ -1593,6 +1939,7 @@
+@@ -1593,6 +1943,7 @@
  	return NULL;
  }
  
@@ -861,7 +865,7 @@ Index: plugins/document-manager/anjuta-docman.c
  GList*
  anjuta_docman_get_all_doc_widgets (AnjutaDocman *docman)
  {
-@@ -1605,7 +1952,20 @@
+@@ -1605,7 +1956,20 @@
  		AnjutaDocmanPage *page;
  		page = (AnjutaDocmanPage *) node->data;
  		if (page && page->doc)
@@ -885,7 +889,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		wids = g_list_reverse (wids);
 Index: plugins/document-manager/action-callbacks.c
 ===================================================================
---- plugins/document-manager/action-callbacks.c	(revision 4097)
+--- plugins/document-manager/action-callbacks.c	(revision 4131)
 +++ plugins/document-manager/action-callbacks.c	(working copy)
 @@ -23,6 +23,8 @@
  
@@ -969,7 +973,7 @@ Index: plugins/document-manager/action-callbacks.c
  }
 Index: libanjuta/interfaces/libanjuta.idl
 ===================================================================
---- libanjuta/interfaces/libanjuta.idl	(revision 4097)
+--- libanjuta/interfaces/libanjuta.idl	(revision 4131)
 +++ libanjuta/interfaces/libanjuta.idl	(working copy)
 @@ -1499,6 +1499,7 @@
  	 */
@@ -979,7 +983,19 @@ Index: libanjuta/interfaces/libanjuta.idl
  		#include <libanjuta/interfaces/ianjuta-editor-cell.h>
  		/**
  		 * ianjuta_editor_selection_has_selection:
-@@ -2128,9 +2129,180 @@
+@@ -1807,9 +1808,10 @@
+ 		void hide_suggestions ();
+ 		
+ 		/**
+-		 * ianjuta_editor_assist_tip:
++		 * ianjuta_editor_assist_show_tips:
+ 		 * @obj: Self
+ 		 * @tips: list of alternative tips.
++         * @position: position at which the tooltip should be displayed.
+ 		 * @char_alignment: Character alignment.
+ 		 * @err: Error propagation and reporting
+ 		 *
+@@ -2128,9 +2130,180 @@
  		void matching_brace();
  		
  	}
@@ -1160,3 +1176,39 @@ Index: libanjuta/interfaces/libanjuta.idl
   * SECTION:ianjuta-editor-cell
   * @title: IAnjutaEditorCell
   * @short_description: Text editor character cell
+Index: libanjuta/anjuta-ui.h
+===================================================================
+--- libanjuta/anjuta-ui.h	(revision 4131)
++++ libanjuta/anjuta-ui.h	(working copy)
+@@ -136,6 +136,8 @@
+ 
+ void anjuta_ui_save_accels (void);
+ 
++void anjuta_ui_unload_accels (AnjutaUI *ui);
++
+ /* Convenience macros to register stock icons */
+ #define BEGIN_REGISTER_ICON(plugin) \
+ { \
+Index: libanjuta/anjuta-ui.c
+===================================================================
+--- libanjuta/anjuta-ui.c	(revision 4131)
++++ libanjuta/anjuta-ui.c	(working copy)
+@@ -980,3 +980,18 @@
+ 	}
+ }
+ 
++static void anjuta_ui_remove_accel (AnjutaUI *ui,
++     const gchar *accel_path, guint accel_key,
++     GdkModifierType accel_mods, gboolean changed)
++{
++    gtk_accel_group_disconnect_key (anjuta_ui_get_accel_group(ui), accel_key, accel_mods);
++}
++
++void
++anjuta_ui_unload_accels (AnjutaUI *ui)
++{
++    anjuta_ui_save_accels ();
++    gtk_accel_map_foreach_unfiltered (ui, anjuta_ui_remove_accel);
++} 
++
++
