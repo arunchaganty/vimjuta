@@ -28,40 +28,36 @@
 
 #include "vim-widget.h"
 #include "vim-editor.h"
-#include "vim-test.h"
 #include "plugin.h"
 
-#define UI_FILE ANJUTA_DATA_DIR"/ui/vim-test.ui"
 #define GLADE_FILE ANJUTA_DATA_DIR"/glade/anjuta-gvim.glade"
+#define VIMRC_FILE ANJUTA_DATA_DIR"/gvim/anjuta.vimrc"
 
 static gpointer parent_class;
-
-static GtkActionEntry actions_test[] = {
-	{
-		"TestBegin",                       /* Action name */
-		GTK_STOCK_NEW,                            /* Stock icon, if any */
-		N_("Begin Testing"),                     /* Display label */
-		NULL,                                     /* short-cut */
-		N_("Tests"),                      /* Tooltip */
-		G_CALLBACK (vim_test_begin)   /* action callback */
-	}
-};
 
 static gboolean
 anjuta_gvim_activate (AnjutaPlugin *plugin)
 {
 	VimPlugin *vim_plugin = ANJUTA_PLUGIN_GVIM (plugin);
 	AnjutaUI *ui;
+    GFile *file = NULL;
 	gchar *filename =  anjuta_util_get_user_config_file_path ("vim-accels", NULL);
 	DEBUG_PRINT ("VimPlugin: Activating VimPlugin plugin ...");
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
-	anjuta_ui_add_action_group_entries (ui, "ActionGroupVimFile",
-										_("VimPlugin Tests"),
-										actions_test,
-										G_N_ELEMENTS (actions_test),
-										GETTEXT_PACKAGE, TRUE, plugin);
-	vim_plugin->uiid = anjuta_ui_merge (ui, UI_FILE);
     anjuta_ui_unload_accels (ui);
+    /* Check for vimrc file. If not, copy from the package directory */
+    file = anjuta_util_get_user_config_file ("gvim", "anjuta.vimrc", NULL);
+    if (!g_file_query_exists (file, NULL))
+    {
+        GFile *master = NULL;
+        master = g_file_new_for_path (VIMRC_FILE);
+        g_file_copy (master, file,
+                G_FILE_COPY_NONE,
+                NULL,
+                NULL,
+                NULL,
+                NULL);
+    }
 
 	return TRUE;
 }
@@ -76,7 +72,6 @@ anjuta_gvim_deactivate (AnjutaPlugin *plugin)
 	DEBUG_PRINT ("VimPlugin: Dectivating VimPlugin plugin ...");
 
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
-	anjuta_ui_unmerge (ui, vim_plugin->uiid);
     anjuta_ui_load_accels ();
 	return TRUE;
 }

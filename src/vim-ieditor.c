@@ -36,6 +36,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-master.h>
 #include <libanjuta/interfaces/ianjuta-editor-search.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
+#include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-markable.h>
 #include "vim-widget.h"
 #include "vim-editor.h"
@@ -259,7 +260,7 @@ ieditor_insert(IAnjutaEditor *ieditor, IAnjutaIterable* icell,
 	gint position = ianjuta_iterable_get_position (icell, err);
 
 	g_assert (err == NULL);
-	query = g_strdup_printf ("AnjutaInsert (%d, '%s', %d)", 
+query = g_strdup_printf ("call AnjutaInsert (%d, '%s', %d)", 
 			editor->priv->bufno,
 			text, 
 			position-1); /* the default insert is infact an append */
@@ -279,7 +280,7 @@ ieditor_append(IAnjutaEditor *ieditor, const gchar* text,
 	gchar* query = NULL;
 
 	g_assert (err == NULL);
-	query = g_strdup_printf ("AnjutaInsert (%d,'%s', '$')", 
+	query = g_strdup_printf ("call AnjutaInsert (%d,'%s', '$')", 
 			editor->priv->bufno, 
 			text);
 
@@ -1090,5 +1091,67 @@ imarkable_iface_init (IAnjutaMarkableIface *iface)
 	iface->location_from_handle = imarkable_location_from_handle;
 	iface->mark = imarkable_mark;
 	iface->unmark = imarkable_unmark;
+}
+
+/* Vim already provides this feature. */
+static GList*
+iassist_get_suggestions (IAnjutaEditorAssist *iassist, const gchar *context, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iassist;
+    return NULL;
+}
+
+static void
+iassist_suggest (IAnjutaEditorAssist *iassist, GList* choices, IAnjutaIterable* ipos,
+				 int char_alignment, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iassist;
+    gchar *cmd;
+    GList* node;
+    GString *str = g_string_new ("");
+
+    for (node = choices; node != NULL; node = g_list_next(node))
+        g_string_append_printf (str, "%s,", (gchar*)node->data);
+
+    cmd = g_strdup_printf ("call AnjutaAssistSuggest ([%s])", g_string_free(str, FALSE));
+    vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
+}
+
+static void
+iassist_hide_suggestions (IAnjutaEditorAssist* iassist, GError** err)
+{
+	VimEditor *editor = (VimEditor*) iassist;
+}
+
+static void 
+iassist_show_tips (IAnjutaEditorAssist *iassist, GList* tips, IAnjutaIterable* ipos,
+				   gint char_alignment, GError **err)
+{
+	VimEditor *editor = (VimEditor*) iassist;
+    gchar *cmd;
+    GList* node;
+    GString *str = g_string_new ("");
+
+    for (node = tips; node != NULL; node = g_list_next(node))
+        g_string_append_printf (str, "%s,", (gchar*)node->data);
+
+    cmd = g_strdup_printf ("call AnjutaAssistSuggest ([%s])", g_string_free(str, FALSE));
+    vim_dbus_exec_without_reply (editor->priv->widget, cmd, err);
+}
+
+static void
+iassist_cancel_tips (IAnjutaEditorAssist* iassist, GError** err)
+{
+	VimEditor *editor = (VimEditor*) iassist;
+}
+
+void
+iassist_iface_init (IAnjutaEditorAssistIface* iface)
+{
+	iface->suggest = iassist_suggest;
+	iface->hide_suggestions = iassist_hide_suggestions;
+	iface->get_suggestions = iassist_get_suggestions;
+	iface->show_tips = iassist_show_tips;
+	iface->cancel_tips = iassist_cancel_tips;
 }
 

@@ -77,12 +77,12 @@ iiter_previous (IAnjutaIterable* iter, GError** e)
 	VimEditorCell* cell = VIM_CELL(iter);
 	gint begin_pos;
 	begin_pos = 1;
-	if (cell->priv->position >= begin_pos) 
+	if (cell->priv->position <= begin_pos) 
 	{
 		cell->priv->position = begin_pos;
 		return FALSE;
 	}
-	cell->priv->position++;
+	cell->priv->position--;
 	return TRUE;
 }
 
@@ -145,8 +145,6 @@ iiter_set_position (IAnjutaIterable* iter, gint position, GError** e)
 static gint
 iiter_get_position (IAnjutaIterable* iter, GError** e)
 {
-	gint char_position = 1;
-	
 	VimEditorCell* cell = VIM_CELL(iter);
 
 	return cell->priv->position;

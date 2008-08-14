@@ -37,13 +37,13 @@ function! AnjutaPos2Byte (pos)
 	return line2byte (a:pos[1]) + a:pos[2] + a:pos[3] - 1
 endfunction
 
-
 function! AnjutaByte2Pos (buffer, byte)
     let curpos = getpos('.')
     let byte = a:byte
     exec "goto ".byte
     let pos = getpos('.')
     call setpos('.', curpos)
+    let pos[0] = a:buffer
     return pos
 endfunction
 
@@ -331,6 +331,12 @@ endfunction
 function! AnjutaSearch (buffer, query, flags, start, end, case)
 	let case_ = 0
 	let magic_ = 0
+    if (a:start == 0)
+        let a:start = 1
+    endif
+    if (a:end == 0)
+        let a:end = 1
+    endif
 	if (&ignorecase)
 		if (a:case)
 			let case_ = 1
@@ -482,6 +488,15 @@ function! AnjutaMarkMove (bufno, handle, type, line)
     exec "sign unplace ".a:handle." buffer=".a:bufno
     exec "sign place ".a:handle." name=".icon." line=".a:line." buffer=".a:bufno
     call AnjutaSignalMarkChanged (a:bufno, a:handle, a:type)
+endfunction
+
+function! AnjutaAssistSuggest (tips)
+    let curpos = getpos('.')
+    normal b
+    let cols = col('.')
+    call setpos('.', curpos)
+    call complete(cols,a:tips)
+    return ""
 endfunction
 
 

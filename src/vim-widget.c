@@ -230,9 +230,11 @@ vim_widget_connect_plug (VimWidget *widget)
 	GError *err = NULL;
 	widget->priv->socket_id = gtk_socket_get_id ((GtkSocket *) widget->priv->socket);
 	g_assert (widget->priv->socket_id != 0);
+    /* TODO: Make unique */
+	widget->priv->servername = g_strdup_printf ("ANJUTA1");
 	
-	cmd = g_strdup_printf ("gvim -U %s --socketid %d \n",
-			GVIMRC_FILE, widget->priv->socket_id);
+	cmd = g_strdup_printf ("gvim -U %s --socketid %d --servername %s \n",
+			GVIMRC_FILE, widget->priv->socket_id, widget->priv->servername);
 	g_message ("Executing %s\n", cmd);
 	/* Run vim */
 	g_spawn_command_line_async (cmd, &err);
@@ -244,8 +246,6 @@ vim_widget_connect_plug (VimWidget *widget)
 		g_object_unref (err);
 		err = NULL;
 	}
-
-		/* Connect callbacks */
 }
 
 static gboolean

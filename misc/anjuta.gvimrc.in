@@ -3,6 +3,7 @@
 
 " Load the default gvimrc
 source ~/.gvimrc 
+source $XDG_CONFIG_HOME/anjuta/gvim/anjuta.vimrc 
 set guioptions-=i
 set guioptions-=m
 set guioptions-=T

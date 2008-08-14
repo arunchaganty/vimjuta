@@ -37,6 +37,8 @@ struct _VimWidgetPrivate
 	DBusGConnection* conn;
 	DBusGProxy* dbus_proxy;
 	DBusGProxy* proxy;
+	gchar *servername;
+	GdkWindow *vim;
 
 	GList* documents; 
 	GList* unloaded; 

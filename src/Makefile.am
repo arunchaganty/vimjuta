@@ -10,7 +10,7 @@ anjuta_gvim_ui_DATA =  anjuta-gvim.ui \
 anjuta_gvim_gladedir = $(anjuta_glade_dir)
 anjuta_gvim_glade_DATA =  anjuta-gvim.glade
 
-# Plugin Icon file
+# Plugin Icon file"
 anjuta_gvim_pixmapsdir = $(anjuta_image_dir)
 anjuta_gvim_pixmaps_DATA = anjuta-gvim.png
 
