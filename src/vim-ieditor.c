@@ -260,7 +260,7 @@ ieditor_insert(IAnjutaEditor *ieditor, IAnjutaIterable* icell,
 	gint position = ianjuta_iterable_get_position (icell, err);
 
 	g_assert (err == NULL);
-query = g_strdup_printf ("call AnjutaInsert (%d, '%s', %d)", 
+    query = g_strdup_printf ("call AnjutaInsert (%d, \"%s\", %d)", 
 			editor->priv->bufno,
 			text, 
 			position-1); /* the default insert is infact an append */
@@ -280,7 +280,7 @@ ieditor_append(IAnjutaEditor *ieditor, const gchar* text,
 	gchar* query = NULL;
 
 	g_assert (err == NULL);
-	query = g_strdup_printf ("call AnjutaInsert (%d,'%s', '$')", 
+	query = g_strdup_printf ("call AnjutaInsert (%d, \"%s\", '$')", 
 			editor->priv->bufno, 
 			text);
 

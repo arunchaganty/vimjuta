@@ -2,9 +2,7 @@
 
 # Plugin UI file
 anjuta_gvim_uidir = $(anjuta_ui_dir)
-anjuta_gvim_ui_DATA =  anjuta-gvim.ui \
-	vim-test.ui
-
+anjuta_gvim_ui_DATA =  anjuta-gvim.ui
 
 # Plugin Glade file
 anjuta_gvim_gladedir = $(anjuta_glade_dir)
@@ -57,7 +55,6 @@ libanjuta_gvim_la_SOURCES = plugin.c plugin.h \
 	vim-cell.c vim-cell.h \
 	vim-signal.c vim-signal.h\
 	vim-util.c vim-util.h\
-	vim-test.c\
 	vim-widget.c vim-widget.h 
 
 
