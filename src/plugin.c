@@ -32,8 +32,72 @@
 
 #define GLADE_FILE ANJUTA_DATA_DIR"/glade/anjuta-gvim.glade"
 #define VIMRC_FILE ANJUTA_DATA_DIR"/gvim/anjuta.vimrc"
+#define ACCELS_FILE ANJUTA_DATA_DIR"/gvim/vimjuta-accels"
+#define KEYS_FILE ANJUTA_DATA_DIR"/gvim/locked_keys"
 
 static gpointer parent_class;
+
+static void
+anjuta_gvim_lock_keys()
+{
+    GDataInputStream *stream;
+    GFile *file = anjuta_util_get_user_config_file ("gvim", "locked_keys", NULL);
+    GList *keys = NULL;
+    GList *node = NULL;
+    gchar *key = NULL;
+    gint len;
+
+    if (!g_file_query_exists (file, NULL))
+    {
+        GFile *master = NULL;
+        master = g_file_new_for_path (KEYS_FILE);
+        g_file_copy (master, file,
+                G_FILE_COPY_NONE,
+                NULL,
+                NULL,
+                NULL,
+                NULL);
+    }
+
+    stream = g_data_input_stream_new (G_INPUT_STREAM(g_file_read (file, NULL, NULL)));
+
+    while (key = (gchar*) g_data_input_stream_read_line (stream, NULL, NULL, NULL))
+    {
+        gtk_accel_map_lock_path (key);
+        g_free (key);
+    }
+}
+
+static void
+anjuta_gvim_unlock_keys()
+{
+    GDataInputStream *stream;
+    GFile *file = anjuta_util_get_user_config_file ("gvim", "locked_keys", NULL);
+    GList *keys = NULL;
+    GList *node = NULL;
+    gchar *key = NULL;
+    gint len;
+
+    if (!g_file_query_exists (file, NULL))
+    {
+        GFile *master = NULL;
+        master = g_file_new_for_path (KEYS_FILE);
+        g_file_copy (master, file,
+                G_FILE_COPY_NONE,
+                NULL,
+                NULL,
+                NULL,
+                NULL);
+    }
+
+    stream = g_data_input_stream_new (G_INPUT_STREAM(g_file_read (file, NULL, NULL)));
+
+    while (key = (gchar*)g_data_input_stream_read_line (stream, NULL, NULL, NULL))
+    {
+        gtk_accel_map_unlock_path (key);
+        g_free (key);
+    }
+}
 
 static gboolean
 anjuta_gvim_activate (AnjutaPlugin *plugin)
@@ -41,10 +105,29 @@ anjuta_gvim_activate (AnjutaPlugin *plugin)
 	VimPlugin *vim_plugin = ANJUTA_PLUGIN_GVIM (plugin);
 	AnjutaUI *ui;
     GFile *file = NULL;
-	gchar *filename =  anjuta_util_get_user_config_file_path ("vim-accels", NULL);
 	DEBUG_PRINT ("VimPlugin: Activating VimPlugin plugin ...");
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
     anjuta_ui_unload_accels (ui);
+    anjuta_gvim_lock_keys();
+    gtk_accel_map_lock_path ("<Ctrl>w");
+    gtk_accel_map_lock_path ("<Ctrl>n");
+
+    /* Check for vimrc file. If not, copy from the package directory */
+    file = anjuta_util_get_user_config_file ("gvim", "vimjuta-accels", NULL);
+    if (!g_file_query_exists (file, NULL))
+    {
+        GFile *master = NULL;
+        master = g_file_new_for_path (ACCELS_FILE);
+        g_file_copy (master, file,
+                G_FILE_COPY_NONE,
+                NULL,
+                NULL,
+                NULL,
+                NULL);
+    }
+
+    anjuta_ui_load_accels (g_file_get_path(file));
+    g_object_unref (file);
     /* Check for vimrc file. If not, copy from the package directory */
     file = anjuta_util_get_user_config_file ("gvim", "anjuta.vimrc", NULL);
     if (!g_file_query_exists (file, NULL))
@@ -58,6 +141,7 @@ anjuta_gvim_activate (AnjutaPlugin *plugin)
                 NULL,
                 NULL);
     }
+    g_object_unref (file);
 
 	return TRUE;
 }
@@ -68,11 +152,34 @@ anjuta_gvim_deactivate (AnjutaPlugin *plugin)
 	AnjutaUI *ui;
 	VimPlugin *vim_plugin = ANJUTA_PLUGIN_GVIM (plugin);
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
-	gchar *filename =  anjuta_util_get_user_config_file_path ("vim-accels", NULL);
+	GFile *file;
 	DEBUG_PRINT ("VimPlugin: Dectivating VimPlugin plugin ...");
+    anjuta_gvim_unlock_keys();
+    gtk_accel_map_unlock_path ("<Ctrl>w");
+    gtk_accel_map_unlock_path ("<Ctrl>n");
+
+    if (vim_plugin->widget) gtk_widget_destroy (GTK_WIDGET(vim_plugin->widget));
+
+    /* Check for vimrc file. If not, copy from the package directory */
+    file = anjuta_util_get_user_config_file ("gvim", "vimjuta-accels", NULL);
+    if (!g_file_query_exists (file, NULL))
+    {
+        GFile *master = NULL;
+        master = g_file_new_for_path (ACCELS_FILE);
+        g_file_copy (master, file,
+                G_FILE_COPY_NONE,
+                NULL,
+                NULL,
+                NULL,
+                NULL);
+    }
 
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
-    anjuta_ui_load_accels ();
+    anjuta_ui_save_accels (g_file_get_path(file));
+    anjuta_ui_unload_accels (ui);
+    anjuta_ui_load_accels (NULL);
+    g_object_unref (file);
+
 	return TRUE;
 }
 

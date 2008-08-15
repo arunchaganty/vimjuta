@@ -4,6 +4,8 @@ anjuta_gvim_files_DATA = \
 	anjuta-gvim.vim\
 	anjuta.gvimrc\
 	anjuta.vimrc\
+	vimjuta-accels\
+	locked_keys\
 	vim-dbus.py\
 	anjuta-linemark-16.png\
 	anjuta-breakpoint-enabled-16.png\
