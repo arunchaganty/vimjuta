@@ -69,8 +69,8 @@ EXTRA_DIST = \
 	$(anjuta_gvim_glade_DATA) \
 	$(anjuta_gvim_pixmaps_DATA) \
 	vim-dbus.py \
-	vim-test.ui \
 	../misc/anjuta.gvimrc \
 	../misc/anjuta.gvimrc.in \
 	../misc/anjuta-gvim.vim \
-	../misc/editor_multiple.diff
+	../misc/editor_multiple.diff\
+	../misc/accels.diff
