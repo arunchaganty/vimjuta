@@ -227,14 +227,15 @@ static void
 vim_widget_connect_plug (VimWidget *widget) 
 {
 	gchar *cmd;
+    gchar *VIMRC_FILE = anjuta_util_get_user_config_file_path ("gvim", "anjuta.vimrc", NULL);
 	GError *err = NULL;
 	widget->priv->socket_id = gtk_socket_get_id ((GtkSocket *) widget->priv->socket);
 	g_assert (widget->priv->socket_id != 0);
     /* TODO: Make unique */
 	widget->priv->servername = g_strdup_printf ("ANJUTA1");
 	
-	cmd = g_strdup_printf ("gvim -U %s --socketid %d --servername %s \n",
-			GVIMRC_FILE, widget->priv->socket_id, widget->priv->servername);
+	cmd = g_strdup_printf ("gvim -u %s -U %s --socketid %d --servername %s \n",
+            VIMRC_FILE, GVIMRC_FILE, widget->priv->socket_id, widget->priv->servername);
 	g_message ("Executing %s\n", cmd);
 	/* Run vim */
 	g_spawn_command_line_async (cmd, &err);
