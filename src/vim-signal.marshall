@@ -1,0 +1,4 @@
+# Marshallers for Vim Dbus functions.
+VOID:UINT
+VOID:UINT,STRING
+

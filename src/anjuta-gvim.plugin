@@ -1,0 +1,7 @@
+[Anjuta Plugin]
+Location=anjuta-gvim:VimPlugin
+Icon=anjuta-gvim.png
+Name=Vim Editor Plugin
+Description=The Vim Editor, for Anjuta
+Interfaces=IAnjutaEditorFactory
+UserActivatable=no
