@@ -325,7 +325,7 @@ vim_comm_init (VimWidget *widget, GError **error)
 	gdk_property_change (window,
 			prop_vim, type_string,
 			8, GDK_PROP_MODE_REPLACE,
-			"6.0", 4);
+			"7.0", 4);
 
 
     /* get the vim window */
