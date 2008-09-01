@@ -223,6 +223,15 @@ vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err)
  * Once the window is realized, call this function to embed vim
  */
 
+static void
+vim_widget_plug_added_cb (VimWidget *widget)
+{
+    while (!VIM_PLUGIN_IS_READY(widget))
+        g_usleep (10000);
+
+    vim_comm_init(widget, NULL);
+}
+
 static void 
 vim_widget_connect_plug (VimWidget *widget) 
 {
@@ -233,6 +242,11 @@ vim_widget_connect_plug (VimWidget *widget)
 	g_assert (widget->priv->socket_id != 0);
     /* TODO: Make unique */
 	widget->priv->servername = g_strdup_printf ("ANJUTA1");
+
+	g_signal_connect_after (widget->priv->socket,
+						"plug-added",
+						G_CALLBACK(vim_widget_plug_added_cb),
+						NULL);
 	
 	cmd = g_strdup_printf ("gvim -u %s -U %s --socketid %d --servername %s \n",
             VIMRC_FILE, GVIMRC_FILE, widget->priv->socket_id, widget->priv->servername);

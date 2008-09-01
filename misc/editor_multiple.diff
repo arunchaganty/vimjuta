@@ -1,6 +1,6 @@
 Index: plugins/document-manager/anjuta-docman.c
 ===================================================================
---- plugins/document-manager/anjuta-docman.c	(revision 4131)
+--- plugins/document-manager/anjuta-docman.c	(revision 4202)
 +++ plugins/document-manager/anjuta-docman.c	(working copy)
 @@ -27,6 +27,8 @@
  #include <libanjuta/interfaces/ianjuta-markable.h>
@@ -274,7 +274,7 @@ Index: plugins/document-manager/anjuta-docman.c
  				break;
  			}
  		}
-@@ -324,21 +420,49 @@
+@@ -324,6 +420,27 @@
  }
  
  static void
@@ -302,11 +302,8 @@ Index: plugins/document-manager/anjuta-docman.c
  anjuta_docman_page_init (AnjutaDocman *docman, IAnjutaDocument *doc,
  						 GFile* file, AnjutaDocmanPage *page)
  {
- 	GtkWidget *close_button;
- 	GtkWidget *close_pixmap;
- 	GtkWidget *label, *menu_label;
--	GtkWidget *vbox, *box, *menu_box;
-+	GtkWidget *box, *menu_box;
+@@ -333,12 +450,19 @@
+ 	GtkWidget *vbox, *box, *menu_box;
  	GtkWidget *event_hbox;
  	GtkWidget *event_box;
 +	GtkWidget *doc_widget;
@@ -325,26 +322,25 @@ Index: plugins/document-manager/anjuta-docman.c
  	
  	gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &w, &h);
  
-@@ -456,9 +580,6 @@
- 	gtk_widget_show_all (menu_box);
+@@ -457,7 +581,7 @@
  	
  	/* main box */
--	vbox = gtk_vbox_new (FALSE, 0);
+ 	vbox = gtk_vbox_new (FALSE, 0);
 -	gtk_box_pack_end (GTK_BOX (vbox), GTK_WIDGET (doc), TRUE, TRUE, 0);
--
++	gtk_box_pack_end (GTK_BOX (vbox), GTK_WIDGET (doc_widget), TRUE, TRUE, 0);
+ 
  	g_signal_connect (G_OBJECT (close_button), "clicked",
  					  G_CALLBACK (on_notebook_page_close_button_click),
- 					  docman);
-@@ -475,7 +596,7 @@
+@@ -475,7 +599,7 @@
  					  G_CALLBACK (on_notebook_tab_btnrelease),
  					  docman);
  
 -	page->widget = GTK_WIDGET (vbox);	/* this is the notebook-page child widget */
-+	page->widget = doc_widget;	/* this is the notebook-page child widget */
++	page->widget = GTK_WIDGET(vbox);	/* this is the notebook-page child widget */
  	page->doc = doc;
  	page->message_area = NULL;
  	page->box = box;
-@@ -865,7 +986,14 @@
+@@ -865,7 +989,14 @@
  		AnjutaDocmanPage *page;
  		
  		page = anjuta_docman_get_nth_page (docman, page_num);
@@ -360,7 +356,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		
  		/* TTimo: reorder so that the most recently used files are
  		 * at the beginning of the tab list
-@@ -890,6 +1018,43 @@
+@@ -890,6 +1021,43 @@
  }
  
  static void
@@ -404,7 +400,7 @@ Index: plugins/document-manager/anjuta-docman.c
  on_document_destroy (IAnjutaDocument *doc, AnjutaDocman *docman)
  {
  	AnjutaDocmanPage *page;
-@@ -914,13 +1079,14 @@
+@@ -914,13 +1082,14 @@
  		else
  		{
  			AnjutaDocmanPage *next_page;
@@ -421,7 +417,7 @@ Index: plugins/document-manager/anjuta-docman.c
  }
  
  /**
-@@ -958,22 +1124,59 @@
+@@ -958,28 +1127,71 @@
  							GFile* file)
  {
  	AnjutaDocmanPage *page;
@@ -484,6 +480,12 @@ Index: plugins/document-manager/anjuta-docman.c
 +		if (!IANJUTA_IS_EDITOR_MULTIPLE (doc))
 +			g_signal_connect (G_OBJECT (doc), "destroy",
 +							  G_CALLBACK (on_document_destroy), docman);
++
++        /* Make sure the widget is realized before proceeding. Without this
++         * condition, the VimPlugin fails
++        while (!GTK_WIDGET_REALIZED (page->widget))
++            g_usleep (10);
++            */
 +		
 +	}
  	g_signal_connect (G_OBJECT (doc), "save_point",
@@ -493,7 +495,14 @@ Index: plugins/document-manager/anjuta-docman.c
  	
  	g_object_ref (doc);
  	
-@@ -987,6 +1190,8 @@
+ 	g_signal_emit (G_OBJECT (docman), docman_signals[DOC_ADDED], 0, doc);
++	anjuta_shell_present_widget (docman->shell, GTK_WIDGET (docman->priv->plugin->vbox), NULL);
+ 	anjuta_docman_set_current_document (docman, doc);
+-	anjuta_shell_present_widget (docman->shell, GTK_WIDGET (docman->priv->plugin->vbox), NULL);
+ 	anjuta_docman_update_documents_menu (docman);
+ }
+ 
+@@ -987,6 +1199,8 @@
  anjuta_docman_remove_document (AnjutaDocman *docman, IAnjutaDocument *doc)
  {
  	AnjutaDocmanPage *page;
@@ -502,7 +511,7 @@ Index: plugins/document-manager/anjuta-docman.c
  
  	if (!doc)
  		doc = anjuta_docman_get_current_document (docman);
-@@ -994,18 +1199,34 @@
+@@ -994,18 +1208,36 @@
  	if (!doc)
  		return;
  
@@ -535,6 +544,8 @@ Index: plugins/document-manager/anjuta-docman.c
 +		page = anjuta_docman_get_page_for_document (docman, doc);
 +		if (page)
 +		{
++            /* remove from vbox */
++            gtk_container_remove (GTK_CONTAINER (page->widget), GTK_WIDGET(doc));
 +			gtk_container_remove (GTK_CONTAINER (docman), page->widget);
 +			if (page == docman->priv->cur_page)
 +				docman->priv->cur_page = NULL;
@@ -547,7 +558,7 @@ Index: plugins/document-manager/anjuta-docman.c
  	anjuta_docman_update_documents_menu(docman);
  	g_object_unref (doc);
  }
-@@ -1051,8 +1272,17 @@
+@@ -1051,8 +1283,17 @@
  
  		page = node->data;
  		g_assert (page);
@@ -566,7 +577,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		node = g_list_next (node);
  	}
  	return NULL;
-@@ -1103,11 +1333,13 @@
+@@ -1103,11 +1344,13 @@
  		if (page)
  		{
  			gint page_num;
@@ -582,7 +593,7 @@ Index: plugins/document-manager/anjuta-docman.c
  				if (oldpage)
  				{
  					oldpage->is_current = FALSE;
-@@ -1121,32 +1353,46 @@
+@@ -1121,32 +1364,46 @@
  			}
  
  			docman->priv->current_document = doc;
@@ -651,7 +662,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		}
  	}
  	else /* doc == NULL */
-@@ -1322,8 +1568,24 @@
+@@ -1322,8 +1579,24 @@
  		AnjutaDocmanPage *page;
  
  		page = (AnjutaDocmanPage *) node->data;
@@ -677,7 +688,7 @@ Index: plugins/document-manager/anjuta-docman.c
  			g_free (fname);
  			return ianjuta_file_get_file (IANJUTA_FILE (page->doc), NULL);
  		}
-@@ -1346,19 +1608,40 @@
+@@ -1346,19 +1619,40 @@
  	{
  		AnjutaDocmanPage* page;
  		page = (AnjutaDocmanPage *)node->data;
@@ -687,6 +698,7 @@ Index: plugins/document-manager/anjuta-docman.c
  			gint curindx;
 -			curindx = gtk_notebook_page_num (GTK_NOTEBOOK (docman), page->widget);
 -			if (curindx != -1)
++            curindx = gtk_notebook_page_num (GTK_NOTEBOOK (docman), page->widget);
 +			if (page->doc == doc)
  			{
 -				if (curindx != gtk_notebook_get_current_page (GTK_NOTEBOOK (docman)))
@@ -694,7 +706,6 @@ Index: plugins/document-manager/anjuta-docman.c
 -				else
 -					/* Make sure current page is visible */
 -					anjuta_docman_grab_text_focus (docman);
-+				curindx = gtk_notebook_page_num (GTK_NOTEBOOK (docman), page->widget);
 +				if (curindx != -1)
 +				{
 +					/* The page may still not be the editor tab */
@@ -727,7 +738,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		}
  		node = g_list_next (node);
  	}
-@@ -1381,7 +1664,7 @@
+@@ -1381,7 +1675,7 @@
  	page = anjuta_docman_get_page_for_document (docman, doc);
  	if (!page || page->label == NULL || page->menu_label == NULL)
  		return;
@@ -736,7 +747,7 @@ Index: plugins/document-manager/anjuta-docman.c
  	if (!ianjuta_file_savable_is_dirty(IANJUTA_FILE_SAVABLE (doc), NULL))
  	{
  		dirty_char = "";
-@@ -1439,9 +1722,25 @@
+@@ -1439,9 +1733,25 @@
  		if (IANJUTA_IS_EDITOR (page->doc))
  		{
  			IAnjutaEditor* te;
@@ -765,7 +776,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		}
  	}
  }
-@@ -1458,7 +1757,23 @@
+@@ -1458,7 +1768,23 @@
  		page = (AnjutaDocmanPage *) node->data;
  		if (IANJUTA_IS_EDITOR (page->doc))
  		{
@@ -790,7 +801,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		}
  	}
  }
-@@ -1540,7 +1855,16 @@
+@@ -1540,7 +1866,16 @@
  		{
  			page = node->data;
  			tab_labels[i].m_widget = page->widget; /* CHECKME needed ? */
@@ -808,7 +819,7 @@ Index: plugins/document-manager/anjuta-docman.c
  			node = g_list_next (node);
  		}
  	}
-@@ -1576,16 +1900,42 @@
+@@ -1576,16 +1911,42 @@
  				IAnjutaDocument *doc;
  				GFile* doc_file;
  
@@ -857,7 +868,7 @@ Index: plugins/document-manager/anjuta-docman.c
  				}
  			}
  		}
-@@ -1593,6 +1943,7 @@
+@@ -1593,6 +1954,7 @@
  	return NULL;
  }
  
@@ -865,7 +876,7 @@ Index: plugins/document-manager/anjuta-docman.c
  GList*
  anjuta_docman_get_all_doc_widgets (AnjutaDocman *docman)
  {
-@@ -1605,7 +1956,20 @@
+@@ -1605,7 +1967,20 @@
  		AnjutaDocmanPage *page;
  		page = (AnjutaDocmanPage *) node->data;
  		if (page && page->doc)
@@ -889,7 +900,7 @@ Index: plugins/document-manager/anjuta-docman.c
  		wids = g_list_reverse (wids);
 Index: plugins/document-manager/action-callbacks.c
 ===================================================================
---- plugins/document-manager/action-callbacks.c	(revision 4131)
+--- plugins/document-manager/action-callbacks.c	(revision 4202)
 +++ plugins/document-manager/action-callbacks.c	(working copy)
 @@ -23,6 +23,8 @@
  
@@ -973,7 +984,7 @@ Index: plugins/document-manager/action-callbacks.c
  }
 Index: libanjuta/interfaces/libanjuta.idl
 ===================================================================
---- libanjuta/interfaces/libanjuta.idl	(revision 4131)
+--- libanjuta/interfaces/libanjuta.idl	(revision 4202)
 +++ libanjuta/interfaces/libanjuta.idl	(working copy)
 @@ -1499,6 +1499,7 @@
  	 */
@@ -1176,39 +1187,3 @@ Index: libanjuta/interfaces/libanjuta.idl
   * SECTION:ianjuta-editor-cell
   * @title: IAnjutaEditorCell
   * @short_description: Text editor character cell
-Index: libanjuta/anjuta-ui.h
-===================================================================
---- libanjuta/anjuta-ui.h	(revision 4131)
-+++ libanjuta/anjuta-ui.h	(working copy)
-@@ -136,6 +136,8 @@
- 
- void anjuta_ui_save_accels (void);
- 
-+void anjuta_ui_unload_accels (AnjutaUI *ui);
-+
- /* Convenience macros to register stock icons */
- #define BEGIN_REGISTER_ICON(plugin) \
- { \
-Index: libanjuta/anjuta-ui.c
-===================================================================
---- libanjuta/anjuta-ui.c	(revision 4131)
-+++ libanjuta/anjuta-ui.c	(working copy)
-@@ -980,3 +980,18 @@
- 	}
- }
- 
-+static void anjuta_ui_remove_accel (AnjutaUI *ui,
-+     const gchar *accel_path, guint accel_key,
-+     GdkModifierType accel_mods, gboolean changed)
-+{
-+    gtk_accel_group_disconnect_key (anjuta_ui_get_accel_group(ui), accel_key, accel_mods);
-+}
-+
-+void
-+anjuta_ui_unload_accels (AnjutaUI *ui)
-+{
-+    anjuta_ui_save_accels ();
-+    gtk_accel_map_foreach_unfiltered (ui, anjuta_ui_remove_accel);
-+} 
-+
-+

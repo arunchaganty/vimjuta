@@ -477,6 +477,9 @@ vim_dbus_exec (VimWidget* widget, gchar* cmd, GError **error)
 	gchar *reply;
 	GError *err = NULL;
 
+    while (!VIM_PLUGIN_IS_READY(widget))
+        g_usleep (10000);
+
 	g_return_val_if_fail (VIM_PLUGIN_IS_READY(widget), NULL);
 	
 	dbus_g_proxy_call (widget->priv->proxy,
