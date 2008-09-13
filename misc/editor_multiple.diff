@@ -417,7 +417,7 @@ Index: plugins/document-manager/anjuta-docman.c
  }
  
  /**
-@@ -958,28 +1127,71 @@
+@@ -958,28 +1127,65 @@
  							GFile* file)
  {
  	AnjutaDocmanPage *page;
@@ -481,12 +481,6 @@ Index: plugins/document-manager/anjuta-docman.c
 +			g_signal_connect (G_OBJECT (doc), "destroy",
 +							  G_CALLBACK (on_document_destroy), docman);
 +
-+        /* Make sure the widget is realized before proceeding. Without this
-+         * condition, the VimPlugin fails
-+        while (!GTK_WIDGET_REALIZED (page->widget))
-+            g_usleep (10);
-+            */
-+		
 +	}
  	g_signal_connect (G_OBJECT (doc), "save_point",
  					  G_CALLBACK (on_document_save_point), docman);
@@ -502,7 +496,7 @@ Index: plugins/document-manager/anjuta-docman.c
  	anjuta_docman_update_documents_menu (docman);
  }
  
-@@ -987,6 +1199,8 @@
+@@ -987,6 +1193,8 @@
  anjuta_docman_remove_document (AnjutaDocman *docman, IAnjutaDocument *doc)
  {
  	AnjutaDocmanPage *page;
@@ -511,7 +505,7 @@ Index: plugins/document-manager/anjuta-docman.c
  
  	if (!doc)
  		doc = anjuta_docman_get_current_document (docman);
-@@ -994,18 +1208,36 @@
+@@ -994,18 +1202,42 @@
  	if (!doc)
  		return;
  
@@ -544,8 +538,14 @@ Index: plugins/document-manager/anjuta-docman.c
 +		page = anjuta_docman_get_page_for_document (docman, doc);
 +		if (page)
 +		{
++            GtkWidget *doc_widget;
++            if (IANJUTA_IS_EDITOR_MULTIPLE (doc))
++                doc_widget = GTK_WIDGET(ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL));
++            else
++                doc_widget = GTK_WIDGET (doc);
++
 +            /* remove from vbox */
-+            gtk_container_remove (GTK_CONTAINER (page->widget), GTK_WIDGET(doc));
++            gtk_container_remove (GTK_CONTAINER (page->widget), doc_widget);
 +			gtk_container_remove (GTK_CONTAINER (docman), page->widget);
 +			if (page == docman->priv->cur_page)
 +				docman->priv->cur_page = NULL;
