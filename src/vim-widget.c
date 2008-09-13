@@ -224,10 +224,11 @@ vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err)
  */
 
 static void
-vim_widget_plug_added_cb (VimWidget *widget)
+vim_widget_plug_added_cb (GtkSocket *socket, VimWidget *widget)
 {
-    while (!VIM_PLUGIN_IS_READY(widget))
-        g_usleep (10000);
+/*    while (!VIM_PLUGIN_IS_READY(widget))
+        g_usleep (10);
+*/
 
     vim_comm_init(widget, NULL);
 }
@@ -246,7 +247,7 @@ vim_widget_connect_plug (VimWidget *widget)
 	g_signal_connect_after (widget->priv->socket,
 						"plug-added",
 						G_CALLBACK(vim_widget_plug_added_cb),
-						NULL);
+						widget);
 	
 	cmd = g_strdup_printf ("gvim -u %s -U %s --socketid %d --servername %s \n",
             VIMRC_FILE, GVIMRC_FILE, widget->priv->socket_id, widget->priv->servername);
