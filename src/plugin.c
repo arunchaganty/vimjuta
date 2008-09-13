@@ -63,7 +63,6 @@ anjuta_gvim_lock_keys()
 
     while (key = (gchar*) g_data_input_stream_read_line (stream, NULL, NULL, NULL))
     {
-        g_print ("%s", key);
         gtk_accel_map_lock_path (key);
         g_free (key);
     }
@@ -93,7 +92,7 @@ anjuta_gvim_unlock_keys()
 
     stream = g_data_input_stream_new (G_INPUT_STREAM(g_file_read (file, NULL, NULL)));
 
-    while (key = (gchar*)g_data_input_stream_read_line (stream, NULL, NULL, NULL))
+    while (key = (gchar*) g_data_input_stream_read_line (stream, NULL, NULL, NULL))
     {
         gtk_accel_map_unlock_path (key);
         g_free (key);
@@ -110,8 +109,6 @@ anjuta_gvim_activate (AnjutaPlugin *plugin)
 	ui = anjuta_shell_get_ui (plugin->shell, NULL);
     anjuta_ui_unload_accels (ui);
     anjuta_gvim_lock_keys();
-    gtk_accel_map_lock_path ("<Ctrl>w");
-    gtk_accel_map_lock_path ("<Ctrl>n");
 
     /* Check for vimrc file. If not, copy from the package directory */
     file = anjuta_util_get_user_config_file ("gvim", "vimjuta-accels", NULL);
