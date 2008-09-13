@@ -29,7 +29,7 @@
 #include "vim-widget.h"
 
 #define DBUS_NAME_ANJUTA "org.anjuta"
-#define DBUS_PATH_VIM "/org/anjuta/vim/daemon"
+#define DBUS_PATH_VIM "/org/anjuta/vim/"
 #define DBUS_IFACE_EDITOR_REMOTE "org.editors.remote"
 
 gboolean vim_dbus_init (VimWidget *widget, GError **error);

@@ -63,6 +63,7 @@ anjuta_gvim_lock_keys()
 
     while (key = (gchar*) g_data_input_stream_read_line (stream, NULL, NULL, NULL))
     {
+        g_print ("%s", key);
         gtk_accel_map_lock_path (key);
         g_free (key);
     }

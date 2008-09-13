@@ -41,6 +41,7 @@ vim_comm_init (VimWidget *widget, GError **error)
     guchar *reply, *str; 
     gchar **tmp;
     guint len;
+    guint len_;
     glong wid;
 
 	gdk_property_change (window,
@@ -50,14 +51,18 @@ vim_comm_init (VimWidget *widget, GError **error)
 
     /* get the vim window */
     len = vim_comm_property_get (widget, "VimRegistry", &str);
+    len_ = 0;
     do
     {
         tmp = g_strsplit(str, " ", 2);
-        if (tmp[1] && g_str_equal(tmp[1], widget->priv->servername))
+        if (tmp[0] && tmp[1] && g_str_equal(tmp[1], widget->priv->servername))
             break;
+        len_ += strlen(str)+1;
         str += strlen(str)+1;
         
-    } while (strlen(str) < len);
+    } while (len_ < len);
+
+    if (len_ >= len) return FALSE;
 
     sscanf (tmp[0],"%x", &wid);
 

@@ -140,7 +140,10 @@ if __name__ == "__main__":
     DBusGMainLoop(set_as_default=True)
     bus = dbus.SessionBus()
 
+    servername = vim.eval("v:servername")
+
     # TODO: Use an arbitrarily set variable g:anjuta to make the bus unique.
-    daemon = DBusDaemon (bus, DBUS_NAME_ANJUTA,'%s/daemon'%DBUS_PATH_VIM)
+    daemon = DBusDaemon (bus, '%s.gvim%s'%(DBUS_NAME_ANJUTA, servername[6:]),'%s/%s'%(DBUS_PATH_VIM,
+        servername[6:]))
 
 

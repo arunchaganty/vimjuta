@@ -242,14 +242,14 @@ vim_widget_connect_plug (VimWidget *widget)
 	widget->priv->socket_id = gtk_socket_get_id ((GtkSocket *) widget->priv->socket);
 	g_assert (widget->priv->socket_id != 0);
     /* TODO: Make unique */
-	widget->priv->servername = g_strdup_printf ("ANJUTA1");
+	widget->priv->servername = g_strdup_printf ("ANJUTA%d", widget->priv->socket_id);
 
 	g_signal_connect_after (widget->priv->socket,
 						"plug-added",
 						G_CALLBACK(vim_widget_plug_added_cb),
 						widget);
 	
-	cmd = g_strdup_printf ("gvim -u %s -U %s --socketid %d --servername %s \n",
+	cmd = g_strdup_printf ("gvim -u %s -S %s --socketid %d --servername %s \n",
             VIMRC_FILE, GVIMRC_FILE, widget->priv->socket_id, widget->priv->servername);
 	g_message ("Executing %s\n", cmd);
 	/* Run vim */
