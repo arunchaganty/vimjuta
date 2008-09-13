@@ -226,11 +226,9 @@ vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err)
 static void
 vim_widget_plug_added_cb (GtkSocket *socket, VimWidget *widget)
 {
-/*    while (!VIM_PLUGIN_IS_READY(widget))
-        g_usleep (10);
-*/
-
+    /*
     vim_comm_init(widget, NULL);
+    */
 }
 
 static void 
@@ -330,7 +328,7 @@ vim_widget_close_all (VimWidget *widget)
 }
 
 void vim_widget_grab_focus (VimWidget *widget) {
-	gtk_widget_grab_focus (GTK_WIDGET(widget->priv->socket));
+	gtk_widget_grab_focus (GTK_WIDGET(widget));
 }
 
 /* IAnjutaEditorMaster */

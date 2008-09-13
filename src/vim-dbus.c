@@ -265,7 +265,6 @@ vim_dbus_connect_cb (DBusGProxy *proxy,
 									widget,
 									NULL);
 
-        //g_usleep (1000000);
         vim_comm_init(widget, NULL);
 		/* Execute all pending commands */
 		vim_queue_exec (widget);
@@ -313,11 +312,12 @@ vim_dbus_query (VimWidget *widget, gchar* query, GError **error)
 {
 	gchar *reply;
 	GError *err = NULL;
+    unsigned int i = 0;
 
-    /*
-    while (!VIM_PLUGIN_IS_READY(widget))
-        g_usleep (10000);
-        */
+    /* Flush events until it connects. Timeout after INT_MAX events */
+    for (i = 1; (i != 0) && !VIM_PLUGIN_IS_READY(widget) ; i++)
+        g_main_context_iteration (NULL, FALSE);
+
 	g_return_val_if_fail (VIM_PLUGIN_IS_READY(widget), NULL);
 
 	dbus_g_proxy_call (widget->priv->proxy,
@@ -366,10 +366,11 @@ vim_dbus_exec (VimWidget* widget, gchar* cmd, GError **error)
 {
 	gchar *reply;
 	GError *err = NULL;
-/*
-    while (!VIM_PLUGIN_IS_READY(widget))
-        g_usleep (10000);
-        */
+    unsigned int i = 0;
+
+    /* Flush events until it connects. Timeout after INT_MAX events */
+    for (i = 1; (i != 0) && !VIM_PLUGIN_IS_READY(widget) ; i++)
+        g_main_context_iteration (NULL, FALSE);
 
 	g_return_val_if_fail (VIM_PLUGIN_IS_READY(widget), NULL);
 	
