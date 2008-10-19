@@ -497,13 +497,21 @@ static IAnjutaEditorMaster*
 imultiple_get_master (IAnjutaEditorMultiple *imultiple, GError **err)
 {
 	VimEditor* editor = VIM_EDITOR (imultiple);
-	return IANJUTA_EDITOR_MASTER (g_object_ref(editor->priv->widget));
+	return IANJUTA_EDITOR_MASTER (editor->priv->widget);
+}
+
+static gboolean
+imultiple_has_loaded (IAnjutaEditorMultiple *imultiple, GError **err)
+{
+	VimEditor* editor = VIM_EDITOR (imultiple);
+	return editor->priv->loaded;
 }
 
 void 
 imultiple_iface_init (IAnjutaEditorMultipleIface *iface)
 {
 	iface->get_master = imultiple_get_master;
+	iface->has_loaded = imultiple_has_loaded;
 }
 
 static void

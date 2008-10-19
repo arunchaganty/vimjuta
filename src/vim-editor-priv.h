@@ -37,6 +37,7 @@ struct _VimEditorPrivate
 	/* Buffered values */
 	glong length;
     GList* marks;
+    gboolean loaded;
 };
 
 #endif /* _VIM_EDITOR_PRIV_H_ */

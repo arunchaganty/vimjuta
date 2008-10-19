@@ -119,7 +119,7 @@ vim_dbus_connect_cb (DBusGProxy *proxy,
 
         path = g_strdup_printf (DBUS_PATH_VIM "%d", widget->priv->socket_id);
 		widget->priv->proxy = dbus_g_proxy_new_for_name (widget->priv->conn,
-				DBUS_NAME_ANJUTA,
+				name,
 				path,
 				DBUS_IFACE_EDITOR_REMOTE);
 

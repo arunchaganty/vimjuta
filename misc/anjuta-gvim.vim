@@ -125,7 +125,9 @@ function! AnjutaSignalBufFilePost(bufno, file)
 endfunction
 
 function! AnjutaSignalBufEnter(bufno, file)
-    if !AnjutaCheckBuf(a:bufno)
+    let check = !buflisted(a:bufno) || getbufvar(str2nr(a:bufno), '&buftype') != ""
+    echo "BufEnter " a:bufno a:file buflisted(a:bufno) getbufvar(str2nr(a:bufno), '&buftype') == "" check AnjutaCheckBuf(a:bufno)
+    if check
         return
     endif
     if a:file == ""

@@ -66,6 +66,7 @@ vim_widget_add_document_complete (VimWidget *widget, VimEditor *editor)
 	}
 
 	widget->priv->documents = g_list_prepend (widget->priv->documents, editor);
+    editor->priv->loaded = TRUE;
 	vim_editor_update_variables (editor);
 	g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
 			"document-added",
@@ -76,6 +77,7 @@ vim_widget_add_document_complete (VimWidget *widget, VimEditor *editor)
 void
 vim_widget_remove_document (VimWidget *widget, VimEditor *editor, GError **err)
 {
+    unsigned int i;
 	g_return_if_fail (editor != NULL);
 	if (vim_widget_has_editor (widget, editor))
 	{
@@ -123,6 +125,7 @@ vim_widget_remove_document_complete (VimWidget *widget, VimEditor *editor)
 		{
 			widget->priv->documents = g_list_remove (widget->priv->documents, editor);
 		}
+        editor->priv->loaded = FALSE;
 	}
 	/* Set this to null until vim signals the change */
 	widget->priv->current_editor = NULL;
@@ -131,12 +134,14 @@ vim_widget_remove_document_complete (VimWidget *widget, VimEditor *editor)
 			"document-removed",
 			G_OBJECT(editor));
 	gtk_object_destroy (GTK_OBJECT(editor));
+
 	/*
 	g_signal_emit_by_name (editor,
 			"destroy");
 	*/
 
 	g_object_unref (file);
+    /* One for the master's reference */
 	g_object_unref (editor);
 }
 
@@ -432,7 +437,9 @@ vim_signal_buf_new_file_cb (DBusGProxy *proxy, const guint bufno,
 		VimWidget *widget)
 {
 	GFile *file = g_file_new_for_path (UNTITLED_FILE);
-	VimEditor* editor = vim_editor_new (NULL, file);
+	VimEditor *editor;
+	if (!(editor = vim_widget_get_document_file (widget, file, NULL)))
+        editor = vim_editor_new (NULL, file);
 	editor->priv->bufno = bufno;
 	if (!vim_widget_has_editor (widget, editor))
 		vim_widget_add_document_complete (widget, editor);
@@ -451,7 +458,8 @@ vim_signal_buf_read_cb (DBusGProxy *proxy, const guint bufno,
 			file = g_file_new_for_path (filename);
 		else
 			file = g_file_new_for_path (UNTITLED_FILE);
-		editor = vim_editor_new (NULL, file);
+        if (!(editor = vim_widget_get_document_file (widget, file, NULL)))
+            editor = vim_editor_new (NULL, file);
 		editor->priv->bufno = bufno;
 		editor->priv->file = file;
 		vim_widget_add_document_complete (widget, editor);
@@ -471,7 +479,9 @@ vim_signal_buf_add_cb (DBusGProxy *proxy, const guint bufno,
 		const gchar* filename, VimWidget *widget)
 {
 	GFile *file = g_file_new_for_path (filename);
-	VimEditor *editor = vim_editor_new (NULL, file);
+	VimEditor *editor;
+	if (!(editor = vim_widget_get_document_file (widget, file, NULL)))
+        editor = vim_editor_new (NULL, file);
 	editor->priv->bufno = bufno;
 	editor->priv->file = file;
 	if (!vim_widget_has_editor (widget, editor))
@@ -511,11 +521,14 @@ vim_signal_buf_enter_cb (DBusGProxy *proxy, const guint bufno,
 	if (!editor)
 		return;
 	editor->priv->bufno = bufno;
-	widget->priv->current_editor = editor;
-	/* Set the current editor */
-	g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
-			"current-document-changed",
-			G_OBJECT(editor));
+	if (widget->priv->current_editor != editor)
+    {
+	    widget->priv->current_editor = editor;
+        /* Set the current editor */
+        g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
+                "current-document-changed",
+                G_OBJECT(editor));
+    }
 }
 
 void 
