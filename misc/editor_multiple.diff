@@ -1,6 +1,67 @@
+Index: plugins/document-manager/plugin.c
+===================================================================
+--- plugins/document-manager/plugin.c	(revision 4475)
++++ plugins/document-manager/plugin.c	(working copy)
+@@ -487,6 +487,7 @@
+ 		title = g_strdup (doc_plugin->project_name);
+ 	}
+ 	status = anjuta_shell_get_status (ANJUTA_PLUGIN (doc_plugin)->shell, NULL);
++    g_return_if_fail (status);
+ 	/* NULL title is ok */
+ 	anjuta_status_set_title (status, title);
+ 	g_free (title);
+@@ -1247,6 +1248,8 @@
+ {
+ 	gint modifiers;
+ 	gint i;
++    AnjutaDocman *docman = ANJUTA_DOCMAN (plugin->docman);
++    GtkNotebook *notebook = GTK_NOTEBOOK (docman);
+ 
+ 	g_return_val_if_fail (event != NULL, FALSE);
+ 
+@@ -1264,7 +1267,6 @@
+ 	case ID_NEXTBUFFER:
+ 	case ID_PREVBUFFER:
+ 	{
+-		GtkNotebook *notebook = GTK_NOTEBOOK (plugin->docman);
+ 		gint pages_nb;
+ 		gint cur_page;
+ 
+@@ -1278,13 +1280,13 @@
+ 
+ 		pages_nb = g_list_length (notebook->children);
+ 		cur_page = gtk_notebook_get_current_page (notebook);
+-
+ 		if (global_keymap[i].id == ID_NEXTBUFFER)
+ 			cur_page = (cur_page < pages_nb - 1) ? cur_page + 1 : 0;
+ 		else
+ 			cur_page = cur_page ? cur_page - 1 : pages_nb -1;
+ 
+-		gtk_notebook_set_page (notebook, cur_page);
++        anjuta_docman_set_current_document (docman, 
++                anjuta_docman_get_document_for_nth_page (docman, cur_page));
+ 
+ 		break;
+ 	}
+@@ -1292,12 +1294,13 @@
+ 		if (global_keymap[i].id >= ID_FIRSTBUFFER &&
+ 		  global_keymap[i].id <= (ID_FIRSTBUFFER + 9))
+ 		{
+-			GtkNotebook *notebook = GTK_NOTEBOOK (plugin->docman);
+ 			gint page_req = global_keymap[i].id - ID_FIRSTBUFFER;
+ 
+ 			if (!notebook->children)
+ 				return FALSE;
+-			gtk_notebook_set_page(notebook, page_req);
++
++            anjuta_docman_set_current_document (docman, 
++                    anjuta_docman_get_document_for_nth_page (docman, page_req));
+ 		}
+ 		else
+ 			return FALSE;
 Index: plugins/document-manager/anjuta-docman.c
 ===================================================================
---- plugins/document-manager/anjuta-docman.c	(revision 4315)
+--- plugins/document-manager/anjuta-docman.c	(revision 4385)
 +++ plugins/document-manager/anjuta-docman.c	(working copy)
 @@ -27,6 +27,8 @@
  #include <libanjuta/interfaces/ianjuta-markable.h>
@@ -11,301 +72,206 @@ Index: plugins/document-manager/anjuta-docman.c
  #include <libanjuta/interfaces/ianjuta-editor-factory.h>
  
  #include <gtk/gtkfilechooserdialog.h>
-@@ -106,13 +108,13 @@
+@@ -58,7 +60,10 @@
+ struct _AnjutaDocmanPriv {
+ 	DocmanPlugin *plugin;
+ 	AnjutaPreferences *preferences;
+-	GList *pages;		/* list of AnjutaDocmanPage's */
++	//GList *pages;		/* list of AnjutaDocmanPage's */
++    GPtrArray *doc_table;   /* List of documents handled by the Document Manager */
++    gint cur_doc;   /* Current document index */
++    GHashTable *doc_page_table;   /* Doc->Page assocation */
+ 	
+ 	GtkWidget *fileselection;
+ 	
+@@ -72,7 +77,6 @@
+ };
+ 
+ struct _AnjutaDocmanPage {
+-	IAnjutaDocument *doc; /* a IAnjutaDocument */
+ 	GtkWidget *widget;	/* notebook-page widget */
+ 	GtkWidget *message_area; /* page message area */
+ 	GtkWidget *box;		/* notebook-tab-label parent widget */
+@@ -98,13 +102,55 @@
+ static AnjutaDocmanPage *
+ anjuta_docman_get_page_for_document (AnjutaDocman *docman,
+ 									IAnjutaDocument *doc);
++static IAnjutaDocument *
++anjuta_docman_get_document_for_page (AnjutaDocman *docman,
++									AnjutaDocmanPage *page);
+ static AnjutaDocmanPage *
+ anjuta_docman_get_nth_page (AnjutaDocman *docman, gint page_num);
+ 
+ static AnjutaDocmanPage *
+ anjuta_docman_get_current_page (AnjutaDocman *docman);
+ 
++static void imultiple_on_document_removed (GtkWidget *widget, 
++        IAnjutaDocument *doc, AnjutaDocman *docman);
++static void imultiple_on_current_document_changed (GtkWidget *widget, 
++        IAnjutaDocument *doc, AnjutaDocman *docman);
++static void imultiple_on_document_added (GtkWidget *widget, 
++        IAnjutaDocument *doc, AnjutaDocman *docman);
++static void on_imaster_destroy (IAnjutaEditorMaster *imaster, 
++        AnjutaDocman *docman);
++
+ static void
++anjuta_docman_add_imultiple_document (AnjutaDocman *docman, 
++        IAnjutaDocument *doc, GFile* file);
++static void
++anjuta_docman_remove_imultiple_document (AnjutaDocman *docman, 
++        IAnjutaDocument *doc);
++
++IAnjutaDocument *
++anjuta_docman_get_nth_document (AnjutaDocman *docman, 
++                                gint n)
++{
++    if (!docman->priv->doc_table->len) return NULL;
++    return IANJUTA_DOCUMENT (g_ptr_array_index (docman->priv->doc_table, n));
++}
++
++static gint 
++anjuta_docman_get_document_index (AnjutaDocman *docman, 
++                                   IAnjutaDocument *doc) 
++{
++    gint i;
++    gint n = docman->priv->doc_table->len;
++
++    g_return_val_if_fail (doc, -1);
++
++    for (i = 0; i < n; i++)
++        if (doc == anjuta_docman_get_nth_document (docman, i)) return i;
++
++    return -1;
++}
++
++static void
  on_document_toggled (GtkAction* action,
  					 AnjutaDocman* docman)
  {
--	gint n;
-+	IAnjutaDocument *doc = NULL;
- 
- 	if (gtk_toggle_action_get_active (GTK_TOGGLE_ACTION(action)) == FALSE)
+@@ -114,7 +160,10 @@
  		return;
  
--	n = gtk_radio_action_get_current_value (GTK_RADIO_ACTION (action));
+ 	n = gtk_radio_action_get_current_value (GTK_RADIO_ACTION (action));
 -	gtk_notebook_set_current_page (GTK_NOTEBOOK (docman), n);
-+	doc = IANJUTA_DOCUMENT(gtk_radio_action_get_current_value (GTK_RADIO_ACTION (action)));
-+	anjuta_docman_set_current_document (docman, doc);
++    anjuta_docman_set_current_document (docman,
++            anjuta_docman_get_document_for_page (docman,
++               anjuta_docman_get_nth_page (docman, n))
++            );
  }
  
  static void
-@@ -124,17 +126,48 @@
- 	GtkAction* action;
- 	gint n_pages = gtk_notebook_get_n_pages (GTK_NOTEBOOK (docman));
- 	gint current_page = gtk_notebook_get_current_page (GTK_NOTEBOOK (docman));
-+	IAnjutaDocument *doc;
- 	gchar *action_name;
--	
--	action = gtk_ui_manager_get_action (ui, 
-+
-+	doc = anjuta_docman_get_current_document (docman);
-+	if (IANJUTA_IS_EDITOR_MULTIPLE (doc))
-+	{
-+		IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE (doc), NULL);
-+		GList* list = ianjuta_editor_master_list_documents ((imaster), NULL);
-+		GList *node = g_list_find (list, doc);
-+		if (node)
-+		{
-+			action = gtk_ui_manager_get_action (ui, 
- 										"/MenuMain/PlaceHolderDocumentsMenus/Documents/PreviousDocument");
--	g_object_set (action, "sensitive", current_page > 0, NULL);
--	action = gtk_ui_manager_get_action (ui, 
--										"/MenuMain/PlaceHolderDocumentsMenus/Documents/NextDocument");
--	g_object_set (action, "sensitive", (current_page + 1) < n_pages, NULL);	
+@@ -134,7 +183,7 @@
+ 	action = gtk_ui_manager_get_action (ui, 
+ 										"/MenuMain/PlaceHolderDocumentsMenus/Documents/NextDocument");
+ 	g_object_set (action, "sensitive", (current_page + 1) < n_pages, NULL);	
 -	action_name = g_strdup_printf ("Tab_%d", current_page);
--        action = gtk_action_group_get_action (docman->priv->documents_action_group, action_name);
--	g_free (action_name);
-+			g_object_set (action, "sensitive", (g_list_previous(node) || current_page > 0), NULL);
-+			action = gtk_ui_manager_get_action (ui, 
-+											"/MenuMain/PlaceHolderDocumentsMenus/Documents/NextDocument");
-+			g_object_set (action, "sensitive", (g_list_next(node) || (current_page+1 < n_pages)), NULL);	
-+			/* Set the document to be opened */
-+			action_name = g_strdup_printf ("Tab_%d", current_page + g_list_position (list, node));
-+				action = gtk_action_group_get_action (docman->priv->documents_action_group, action_name);
-+			g_free (action_name);
-+		}
-+		else
-+			action = NULL;
-+		g_list_free(list);
-+	}
-+	else {
-+		action = gtk_ui_manager_get_action (ui, 
-+											"/MenuMain/PlaceHolderDocumentsMenus/Documents/PreviousDocument");
-+		g_object_set (action, "sensitive", current_page > 0, NULL);
-+		action = gtk_ui_manager_get_action (ui, 
-+											"/MenuMain/PlaceHolderDocumentsMenus/Documents/NextDocument");
-+		g_object_set (action, "sensitive", (current_page + 1) < n_pages, NULL);	
-+
-+        /* FIXME: Formula to calculate the tab is completely wrong. Need to find if
-+         * prev. pages were editor-muliples and add their sizes respectively */
-+		/* Set the document to be opened */
-+		action_name = g_strdup_printf ("Tab_%d", current_page);
-+			action = gtk_action_group_get_action (docman->priv->documents_action_group, action_name);
-+		g_free (action_name);
-+	}
-+	/* Set the document to be opened */
++	action_name = g_strdup_printf ("Tab_%d", current_page+1);
+ 	action = gtk_action_group_get_action (docman->priv->documents_action_group, action_name);
+ 	g_free (action_name);
  	if (action)
- 		gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), TRUE);
- }
-@@ -146,7 +179,7 @@
- 	GtkUIManager* ui = GTK_UI_MANAGER (anjuta_shell_get_ui (ANJUTA_PLUGIN (priv->plugin)->shell,
- 															NULL));
- 	GList *actions, *l;
--	gint n, i;
-+	gint n, i, page_no;
- 	guint id;
- 	GSList *group = NULL;
+@@ -154,6 +203,7 @@
  
-@@ -171,7 +204,7 @@
+ 	g_return_if_fail (priv->documents_action_group != NULL);
  
- 	id = (n > 0) ? gtk_ui_manager_new_merge_id (ui) : 0;
- 
--	for (i = 0; i < n; i++)
-+	for (page_no = i = 0; page_no < n; page_no++)
++    /* Remove all actions */
+ 	if (priv->documents_merge_id != 0)
+ 		gtk_ui_manager_remove_ui (ui,
+ 					  priv->documents_merge_id);
+@@ -177,8 +227,8 @@
  	{
  		AnjutaDocmanPage* page;
  		GtkRadioAction *action;
-@@ -179,56 +212,112 @@
- 		const gchar *tab_name;
+-		gchar *action_name;
+-		const gchar *tab_name;
++ 		gchar *action_name;
++ 		const gchar *tab_name;
  		gchar *accel;
  
--		page = anjuta_docman_get_nth_page (docman, i);
-+		page = anjuta_docman_get_nth_page (docman, page_no);
- 
--		/* NOTE: the action is associated to the position of the tab in
--		 * the notebook not to the tab itself! This is needed to work
--		 * around the gtk+ bug #170727: gtk leaves around the accels
--		 * of the action. Since the accel depends on the tab position
--		 * the problem is worked around, action with the same name always
--		 * get the same accel.
--		 */
+ 		page = anjuta_docman_get_nth_page (docman, i);
+@@ -190,11 +240,11 @@
+ 		 * the problem is worked around, action with the same name always
+ 		 * get the same accel.
+ 		 */
 -		action_name = g_strdup_printf ("Tab_%d", i);
--		tab_name = gtk_label_get_label (GTK_LABEL (page->label));
-+		if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc))
-+		{
-+			IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+			GList *list = ianjuta_editor_master_list_documents (imaster, NULL);
-+			GList *node = list;
-+			for (; node != NULL; node = g_list_next (node))
-+			{
-+				IAnjutaDocument* doc = IANJUTA_DOCUMENT (node->data);
-+				action_name = g_strdup_printf ("Tab_%d", i);
-+				tab_name = ianjuta_document_get_filename (doc, NULL);
++		action_name = g_strdup_printf ("Tab_%d", i+1);
+ 		tab_name = gtk_label_get_label (GTK_LABEL (page->label));
  
--		/* alt + 1, 2, 3... 0 to switch to the first ten tabs */
+ 		/* alt + 1, 2, 3... 0 to switch to the first ten tabs */
 -		accel = (i < 10) ? g_strdup_printf ("<alt>%d", (i + 1) % 10) : NULL;
-+				/* alt + 1, 2, 3... 0 to switch to the first ten tabs */
-+				accel = (i < 10) ? g_strdup_printf ("<alt>%d", (i + 1) % 10) : NULL;
++		accel = (i < 11) ? g_strdup_printf ("<alt>%d", (i + 1) % 10) : NULL;
  
--		action = gtk_radio_action_new (action_name,
--					       tab_name,
--					       NULL,
--					       NULL,
--					       i);
-+				/* Hack: save the document pointer as an int */
-+				action = gtk_radio_action_new (action_name,
-+								   tab_name,
-+								   NULL,
-+								   NULL,
-+								   (gint) doc);
+ 		action = gtk_radio_action_new (action_name,
+ 					       tab_name,
+@@ -231,7 +281,7 @@
  
--		if (group != NULL)
--			gtk_radio_action_set_group (action, group);
-+				gtk_radio_action_set_group (action, group);
- 
--		/* note that group changes each time we add an action, so it must be updated */
--		group = gtk_radio_action_get_group (action);
-+				/* note that group changes each time we add an action, so it must be updated */
-+				group = gtk_radio_action_get_group (action);
- 
--		gtk_action_group_add_action_with_accel (priv->documents_action_group,
--							GTK_ACTION (action),
--							accel);
-+				gtk_action_group_add_action_with_accel (priv->documents_action_group,
-+									GTK_ACTION (action),
-+									accel);
- 
--		g_signal_connect (action,
--				  "toggled",
--				  G_CALLBACK (on_document_toggled),
--				  docman);
-+				g_signal_connect (action,
-+						  "toggled",
-+						  G_CALLBACK (on_document_toggled),
-+						  docman);
- 
--		gtk_ui_manager_add_ui (ui,
--				       id,
--				       MENU_PLACEHOLDER,
--				       action_name, action_name,
--				       GTK_UI_MANAGER_MENUITEM,
--				       FALSE);
--		
--		if (i == gtk_notebook_get_current_page (GTK_NOTEBOOK (docman)))
--			gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), TRUE);
--		
--		g_object_unref (action);
-+				gtk_ui_manager_add_ui (ui,
-+							   id,
-+							   MENU_PLACEHOLDER,
-+							   action_name, action_name,
-+							   GTK_UI_MANAGER_MENUITEM,
-+							   FALSE);
-+				
-+				if (doc == anjuta_docman_get_current_document (docman))
-+					gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), TRUE);
-+				
-+				g_object_unref (action);
- 
--		g_free (action_name);
--		g_free (accel);
-+				g_free (action_name);
-+				g_free (accel);
-+				i++;
-+			}
-+			g_list_free (list);
-+		}
-+		else {
-+			/* NOTE: the action is associated to the position of the tab in
-+			 * the notebook not to the tab itself! This is needed to work
-+			 * around the gtk+ bug #170727: gtk leaves around the accels
-+			 * of the action. Since the accel depends on the tab position
-+			 * the problem is worked around, action with the same name always
-+			 * get the same accel.
-+			 */
-+			action_name = g_strdup_printf ("Tab_%d", i);
-+			tab_name = gtk_label_get_label (GTK_LABEL (page->label));
-+
-+			/* alt + 1, 2, 3... 0 to switch to the first ten tabs */
-+			accel = (i < 10) ? g_strdup_printf ("<alt>%d", (i + 1) % 10) : NULL;
-+
-+			action = gtk_radio_action_new (action_name,
-+							   tab_name,
-+							   NULL,
-+							   NULL,
-+							   (gint)page->doc);
-+
-+			if (group != NULL)
-+				gtk_radio_action_set_group (action, group);
-+
-+			/* note that group changes each time we add an action, so it must be updated */
-+			group = gtk_radio_action_get_group (action);
-+
-+			gtk_action_group_add_action_with_accel (priv->documents_action_group,
-+								GTK_ACTION (action),
-+								accel);
-+
-+			g_signal_connect (action,
-+					  "toggled",
-+					  G_CALLBACK (on_document_toggled),
-+					  docman);
-+
-+			gtk_ui_manager_add_ui (ui,
-+						   id,
-+						   MENU_PLACEHOLDER,
-+						   action_name, action_name,
-+						   GTK_UI_MANAGER_MENUITEM,
-+						   FALSE);
-+			
-+			if (page_no == gtk_notebook_get_current_page (GTK_NOTEBOOK (docman)))
-+				gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), TRUE);
-+			
-+			g_object_unref (action);
-+
-+			g_free (action_name);
-+			g_free (accel);
-+			i++;
-+		}
- 	}
+ 		g_free (action_name);
+ 		g_free (accel);
+-	}
++}
  	anjuta_docman_update_documents_menu_status (docman);
  	priv->documents_merge_id = id;	
-@@ -250,7 +339,13 @@
- 			page = (AnjutaDocmanPage *) node->data;
+ }
+@@ -240,24 +290,27 @@
+ on_notebook_page_close_button_click (GtkButton* button,
+ 									AnjutaDocman* docman)
+ {
++    IAnjutaDocument *doc;
+ 	AnjutaDocmanPage *page;
+ 
+-	page = anjuta_docman_get_current_page (docman);
++    doc = anjuta_docman_get_current_document (docman);
++	page = anjuta_docman_get_page_for_document (docman, doc);
++
+ 	if (page == NULL || page->close_button != GTK_WIDGET (button))
+ 	{
+ 		/* the close function works only on the current document */
+-		GList* node;
+-		for (node = docman->priv->pages; node != NULL; node = g_list_next (node))
++		int i;
++        int n = gtk_notebook_get_n_pages (GTK_NOTEBOOK (docman));
++		for (i = 0; i < n; i++)
+ 		{
+-			page = (AnjutaDocmanPage *) node->data;
++			page = anjuta_docman_get_nth_page (docman, i);
  			if (page->close_button == GTK_WIDGET (button))
  			{
 -				anjuta_docman_set_current_document (docman, page->doc);
-+				if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc))
-+				{
-+					IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+					anjuta_docman_set_current_document (docman, ianjuta_editor_master_get_current_document(imaster, NULL));
-+				}
-+				else
-+					anjuta_docman_set_current_document (docman, page->doc);
++                doc = anjuta_docman_get_document_for_page (docman, page);
++				anjuta_docman_set_current_document (docman, doc);
  				break;
  			}
  		}
-@@ -324,6 +419,27 @@
- }
+-		if (node == NULL)
+-			return;
+ 	}
  
- static void
-+imultiple_on_document_removed (GtkWidget *widget, IAnjutaDocument *doc, AnjutaDocman *docman)
-+{
-+	anjuta_docman_remove_document (docman, doc);
-+}
-+
-+static void
-+imultiple_on_current_document_changed (GtkWidget *widget, IAnjutaDocument *doc, AnjutaDocman *docman)
-+{
-+	anjuta_docman_set_current_document (docman, doc);
-+	anjuta_docman_update_documents_menu_status (docman);
-+	anjuta_docman_update_page_label(docman, doc);
-+}
-+
-+static void
-+imultiple_on_document_added (GtkWidget *widget, IAnjutaDocument *doc, AnjutaDocman *docman)
-+{
-+	anjuta_docman_add_document (docman, doc, NULL);
-+}
-+
-+
-+static void
- anjuta_docman_page_init (AnjutaDocman *docman, IAnjutaDocument *doc,
- 						 GFile* file, AnjutaDocmanPage *page)
- {
-@@ -333,12 +449,19 @@
+ 	if (page != NULL)
+@@ -300,13 +353,15 @@
+ 
+ 	if (anjuta_preferences_get_int (docman->priv->preferences, EDITOR_TABS_RECENT_FIRST))
+ 	{
+-		GList *node;
++		int i;
++        int n = docman->priv->doc_table->len;
++        AnjutaDocmanPage *page;
++        IAnjutaDocument *doc;
+ 
+-		for (node = docman->priv->pages; node != NULL; node = g_list_next (node))
++		for (i = 0; i < n; i++)
+ 		{
+-			AnjutaDocmanPage *page;
+-
+-			page = (AnjutaDocmanPage *)node->data;
++            doc = anjuta_docman_get_nth_document (docman, i);
++			page = anjuta_docman_get_page_for_document (docman, doc);
+ 			if (page->box == widget)
+ 			{
+ 				gtk_notebook_reorder_child (GTK_NOTEBOOK (docman), page->widget, 0);
+@@ -376,12 +431,18 @@
  	GtkWidget *vbox, *box, *menu_box;
  	GtkWidget *event_hbox;
  	GtkWidget *event_box;
-+	GtkWidget *doc_widget;
++    GtkWidget *doc_widget;
  	gint h, w;
  	GdkColor color;
  	const gchar *filename;
@@ -313,168 +279,200 @@ Index: plugins/document-manager/anjuta-docman.c
  	
  	g_return_if_fail (IANJUTA_IS_DOCUMENT (doc));
 +
-+	/* If the document is an EditorMultiple, get it's master (which is a widget)  */
 +	if (IANJUTA_IS_EDITOR_MULTIPLE(doc))
-+		doc_widget = GTK_WIDGET(g_object_ref (ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL)));
-+	else
-+		doc_widget = GTK_WIDGET (doc);
++		doc_widget = GTK_WIDGET(ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL));
++    else
++        doc_widget = GTK_WIDGET (doc);
  	
  	gtk_icon_size_lookup (GTK_ICON_SIZE_MENU, &w, &h);
  
-@@ -457,7 +580,7 @@
+@@ -472,7 +533,7 @@
  	
  	/* main box */
  	vbox = gtk_vbox_new (FALSE, 0);
 -	gtk_box_pack_end (GTK_BOX (vbox), GTK_WIDGET (doc), TRUE, TRUE, 0);
-+	gtk_box_pack_end (GTK_BOX (vbox), GTK_WIDGET (doc_widget), TRUE, TRUE, 0);
++	gtk_box_pack_end (GTK_BOX (vbox), doc_widget, TRUE, TRUE, 0);
  
  	g_signal_connect (G_OBJECT (close_button), "clicked",
  					  G_CALLBACK (on_notebook_page_close_button_click),
-@@ -475,7 +598,7 @@
- 					  G_CALLBACK (on_notebook_tab_btnrelease),
+@@ -491,7 +552,6 @@
  					  docman);
  
--	page->widget = GTK_WIDGET (vbox);	/* this is the notebook-page child widget */
-+	page->widget = GTK_WIDGET(vbox);	/* this is the notebook-page child widget */
- 	page->doc = doc;
+ 	page->widget = GTK_WIDGET (vbox);	/* this is the notebook-page child widget */
+-	page->doc = doc;
  	page->message_area = NULL;
  	page->box = box;
-@@ -865,7 +988,13 @@
- 		AnjutaDocmanPage *page;
- 		
- 		page = anjuta_docman_get_nth_page (docman, page_num);
--		anjuta_docman_set_current_document (docman, page->doc);
-+		if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc))
-+		{
-+			IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+			anjuta_docman_set_current_document (docman, ianjuta_editor_master_get_current_document(imaster, NULL));
-+		}
-+		else
-+			anjuta_docman_set_current_document (docman, page->doc);
- 		
- 		/* TTimo: reorder so that the most recently used files are
- 		 * at the beginning of the tab list
-@@ -890,6 +1019,43 @@
+ 	page->close_image = close_pixmap;
+@@ -513,12 +573,19 @@
  }
  
  static void
-+on_imaster_destroy (IAnjutaEditorMaster *imaster, AnjutaDocman *docman)
-+{
-+	gboolean last_doc = TRUE;
-+	GList* list = ianjuta_editor_master_list_documents(imaster, NULL);
-+	IAnjutaDocument *doc = ianjuta_editor_master_get_current_document (imaster, NULL);
-+	AnjutaDocmanPage *page = anjuta_docman_get_nth_page (docman, ianjuta_editor_master_get_page (imaster, NULL));
-+	g_signal_handlers_disconnect_by_func (G_OBJECT (imaster),
-+										  G_CALLBACK (on_imaster_destroy),
-+										  docman);
+-anjuta_docman_page_destroy (AnjutaDocmanPage *page)
++anjuta_docman_page_destroy (AnjutaDocman *docman, AnjutaDocmanPage *page)
+ {
+ 	/* Notebook holds a reference on the widget of page and destroys
+ 	 * them properly
+ 	 */
+-	g_free (page);
++    IAnjutaDocument *doc;
++    while ((doc = anjuta_docman_get_document_for_page (docman, page)))
++    {
++        g_ptr_array_remove (docman->priv->doc_table, doc);
++        g_hash_table_remove (docman->priv->doc_page_table, doc);
++    }
 +
-+	if (g_list_length (list) == 0)
-+		docman->priv->pages = g_list_remove (docman->priv->pages, page);
-+	else
-+		last_doc = FALSE;
-+	g_list_free (list);
++    g_free (page);
+ }
+ 
+ static void
+@@ -742,7 +809,8 @@
+ anjuta_docman_dispose (GObject *obj)
+ {
+ 	AnjutaDocman *docman;
+-	GList *node;
++    int i;
++    int n;
+ 	
+ 	docman = ANJUTA_DOCMAN (obj);
+ 	docman->priv->shutingdown = TRUE;
+@@ -753,27 +821,18 @@
+ 		gtk_widget_destroy (docman->priv->popup_menu);
+ 		docman->priv->popup_menu = NULL;
+ 	}
+-	if (docman->priv->pages)
+-	{
+-		/* Destroy all page data (more than just the notebook-page-widgets) */
+-		GList *pages;
+-		
+-		g_signal_handlers_disconnect_by_func (G_OBJECT (docman),
+-											 (gpointer) on_notebook_switch_page,
+-											 (gpointer) docman);
+-		pages = docman->priv->pages; /*work with copy so var can be NULL'ed ASAP*/
+-		docman->priv->pages = NULL;
+-		for (node = pages; node != NULL; node = g_list_next (node))
+-		{
+-			/* this also tries to destroy any notebook-page-widgets, in case
+-			   they're not gone already
+-		 CHECKME at shutdown do we need "destroy" signals in case other plugins
+-		   hold refs on any page(s) or their contents ?
+-			*/
+-			anjuta_docman_page_destroy ((AnjutaDocmanPage *)node->data);
+-		}
+-		g_list_free (pages);
+-	}
 +
-+	if (!docman->priv->shutingdown)
-+	{
-+		if (page == docman->priv->cur_page)
-+			docman->priv->cur_page = NULL;
-+		if (GTK_NOTEBOOK (docman)->children == NULL)
-+			anjuta_docman_set_current_document (docman, NULL);
-+		else
-+		{
-+			AnjutaDocmanPage *next_page;
-+			gint page_num;
-+			page_num = gtk_notebook_get_current_page (GTK_NOTEBOOK (docman));
-+			next_page = anjuta_docman_get_nth_page (docman, page_num);
-+			doc = next_page->doc;
-+			anjuta_docman_set_current_document (docman, doc);
-+		}
-+	}
-+	if (last_doc)
-+		anjuta_docman_page_destroy (page);
-+}
 +
-+static void
++    g_signal_handlers_disconnect_by_func (G_OBJECT (docman),
++                                         (gpointer) on_notebook_switch_page,
++                                         (gpointer) docman);
++
++    /* Down count to remove the documents from the end of the array */
++    n = docman->priv->doc_table->len;
++    for (i=n; i > 0; i--)
++        anjuta_docman_page_destroy (docman,
++                anjuta_docman_get_nth_page (docman, i));
++    
+ 	G_OBJECT_CLASS (parent_class)->dispose (obj);
+ }
+ 
+@@ -788,6 +847,8 @@
+ 	{
+ 		if (docman->priv->fileselection)
+ 			gtk_widget_destroy (docman->priv->fileselection);
++        g_ptr_array_free (docman->priv->doc_table, TRUE);
++        g_hash_table_destroy (docman->priv->doc_page_table);
+ 		g_free (docman->priv);
+ 		docman->priv = NULL;
+ 	}
+@@ -873,6 +934,8 @@
+ 		real_docman->priv->plugin = plugin;
+ 		real_docman->priv->preferences = pref;
+ 		real_docman->priv->documents_action_group = gtk_action_group_new ("ActionGroupDocument");
++        real_docman->priv->doc_table = g_ptr_array_new();
++        real_docman->priv->doc_page_table = g_hash_table_new(NULL, NULL);
+ 		ui = anjuta_shell_get_ui (ANJUTA_PLUGIN (plugin)->shell, NULL);
+ 		gtk_ui_manager_insert_action_group (GTK_UI_MANAGER (ui), real_docman->priv->documents_action_group, 0);
+ 		g_object_unref (real_docman->priv->documents_action_group);
+@@ -892,15 +955,19 @@
+ 	if (!docman->priv->shutingdown)
+ 	{
+ 		AnjutaDocmanPage *page;
+-		
++		IAnjutaDocument *doc;
++
+ 		page = anjuta_docman_get_nth_page (docman, page_num);
++        doc = anjuta_docman_get_document_for_page (docman, page);
++
+ 		g_signal_handlers_block_by_func (G_OBJECT (docman),
+ 										 (gpointer) on_notebook_switch_page,
+ 										 (gpointer) docman);
+-		anjuta_docman_set_current_document (docman, page->doc);
++		anjuta_docman_set_current_document (docman, doc);
+ 		g_signal_handlers_unblock_by_func (G_OBJECT (docman),
+ 										   (gpointer) on_notebook_switch_page,
+ 										   (gpointer) docman);			
++
+ 		/* TTimo: reorder so that the most recently used files are
+ 		 * at the beginning of the tab list
+ 		 */
+@@ -913,7 +980,7 @@
+ 		}
+ 		/* activate the right item in the documents menu */
+ 		anjuta_docman_update_documents_menu_status (docman);
+-		g_signal_emit_by_name (G_OBJECT (docman), "document-changed", page->doc);	
++		g_signal_emit_by_name (G_OBJECT (docman), "document-changed", doc);	
+ 	}
+ }
+ 
+@@ -928,7 +995,6 @@
  on_document_destroy (IAnjutaDocument *doc, AnjutaDocman *docman)
  {
  	AnjutaDocmanPage *page;
-@@ -914,13 +1080,14 @@
+-	gint page_num;
+ 	
+ 	g_signal_handlers_disconnect_by_func (G_OBJECT (doc),
+ 										  G_CALLBACK (on_document_save_point),
+@@ -938,7 +1004,7 @@
+ 										  docman);
+ 
+ 	page = anjuta_docman_get_page_for_document (docman, doc);
+-	docman->priv->pages = g_list_remove (docman->priv->pages, page);
++    g_hash_table_remove (docman->priv->doc_page_table, doc);
+ 	
+ 	if (!docman->priv->shutingdown)
+ 	{
+@@ -946,14 +1012,12 @@
+ 			anjuta_docman_set_current_document (docman, NULL);
  		else
  		{
- 			AnjutaDocmanPage *next_page;
+-			AnjutaDocmanPage *next_page;
 -			/* set a replacement active document */
- 			page_num = gtk_notebook_get_current_page (GTK_NOTEBOOK (docman));
- 			next_page = anjuta_docman_get_nth_page (docman, page_num);
+-			page_num = gtk_notebook_get_current_page (GTK_NOTEBOOK (docman));
+-			next_page = anjuta_docman_get_nth_page (docman, page_num);
 -			anjuta_docman_set_current_document (docman, next_page->doc);
-+			doc = next_page->doc;
-+			anjuta_docman_set_current_document (docman, doc);
++			/* set a replacement active document (currently first document) */
++            anjuta_docman_set_current_document (docman, 
++                    anjuta_docman_get_nth_document (docman, 0));
  		}
  	}
- 	anjuta_docman_page_destroy (page);
-+
+-	anjuta_docman_page_destroy (page);
++    anjuta_docman_page_destroy (docman, page);
  }
  
  /**
-@@ -958,35 +1125,81 @@
- 							GFile* file)
+@@ -992,30 +1056,104 @@
  {
  	AnjutaDocmanPage *page;
-+    gboolean parented = FALSE;
  
 -	page = anjuta_docman_page_new ();
 -	anjuta_docman_page_init (docman, doc, file, page);
-+	/* Hook up the document manager to list for changes in the EditorMaster
-+	 * signal callback
-+	 * */
++    /* If it is an editor-multiple document, handle separately */
 +	if (IANJUTA_IS_EDITOR_MULTIPLE(doc))
-+	{
-+        GtkWidget *doc_widget = NULL;
-+		IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL);
-+		/* Add to the editor session. If this is the first document, it
-+		 * will create widget */
-+		if (!ianjuta_editor_master_is_registered (imaster, NULL))
-+		{
-+			g_signal_connect (imaster, "document-added",
-+							  G_CALLBACK (imultiple_on_document_added), docman);
-+			g_signal_connect (imaster, "document-removed",
-+							  G_CALLBACK (imultiple_on_document_removed), docman);
-+			g_signal_connect (imaster, "current-document-changed",
-+							  G_CALLBACK (imultiple_on_current_document_changed), docman);
-+			g_signal_connect_after (G_OBJECT (imaster), "destroy",
-+							  G_CALLBACK (on_imaster_destroy), docman);
++        return anjuta_docman_add_imultiple_document (docman, doc, file); 
  
 -	/* list order matches pages in book, initially at least */
 -	docman->priv->pages = g_list_prepend (docman->priv->pages, (gpointer)page);
-+			ianjuta_editor_master_set_registered (imaster, TRUE, NULL);
-+		}
-+
-+		g_object_get (imaster,
-+				"parent", &doc_widget,
-+				NULL);
-+        if (doc_widget)
-+            parented = TRUE;
-+	}
-+
-+	/* If a widget hasn't been added yet (as in the case of a normal document),
-+	 * add it now */
-+	if (!parented)
-+	{
-+		page = anjuta_docman_page_new ();
-+		anjuta_docman_page_init (docman, doc, file, page);
-+
-+		/* list order matches pages in book, initially at least */
-+		docman->priv->pages = g_list_prepend (docman->priv->pages, (gpointer)page);
-+		
-+		gtk_notebook_prepend_page_menu (GTK_NOTEBOOK (docman), page->widget,
-+										page->box, page->menu_box);
-+		gtk_notebook_set_tab_reorderable (GTK_NOTEBOOK (docman), page->widget,
-+										 TRUE);
-+		if (!IANJUTA_IS_EDITOR_MULTIPLE (doc))
-+			g_signal_connect (G_OBJECT (doc), "destroy",
-+							  G_CALLBACK (on_document_destroy), docman);
-+    }
-+
- 	
+-	
 -	gtk_notebook_prepend_page_menu (GTK_NOTEBOOK (docman), page->widget,
 -									page->box, page->menu_box);
 -	gtk_notebook_set_tab_reorderable (GTK_NOTEBOOK (docman), page->widget,
@@ -485,556 +483,707 @@ Index: plugins/document-manager/anjuta-docman.c
 -	g_signal_connect (G_OBJECT (doc), "destroy",
 -					  G_CALLBACK (on_document_destroy), docman);
 -	
--	g_object_ref (doc);
--	
--	g_signal_emit (G_OBJECT (docman), docman_signals[DOC_ADDED], 0, doc);
--	anjuta_docman_set_current_document (docman, doc);
--	anjuta_shell_present_widget (docman->shell, GTK_WIDGET (docman->priv->plugin->vbox), NULL);
--	anjuta_docman_update_documents_menu (docman);
++    page = anjuta_docman_page_new ();
++    anjuta_docman_page_init (docman, doc, file, page);
 +
-+    /* If the document has been loaded, call the update functions */
-+    if (!IANJUTA_IS_EDITOR_MULTIPLE (doc) || ianjuta_editor_multiple_has_loaded (IANJUTA_EDITOR_MULTIPLE(doc), NULL))
++    /* list order matches pages in book, initially at least */
++    gtk_notebook_prepend_page_menu (GTK_NOTEBOOK (docman), page->widget,
++                                    page->box, page->menu_box);
++    gtk_notebook_set_tab_reorderable (GTK_NOTEBOOK (docman), page->widget,
++                                     TRUE);
++
++    /* Keep track of the document */
++    g_ptr_array_add (docman->priv->doc_table, doc);
++    g_hash_table_insert (docman->priv->doc_page_table, doc, page);
+ 	g_object_ref (doc);
+-	
++
++    g_signal_connect (G_OBJECT (doc), "save_point",
++                      G_CALLBACK (on_document_save_point), docman);
++    g_signal_connect (G_OBJECT (doc), "destroy",
++                      G_CALLBACK (on_document_destroy), docman);
++
+ 	anjuta_docman_set_current_document (docman, doc);
+ 	anjuta_shell_present_widget (docman->shell, GTK_WIDGET (docman->priv->plugin->vbox), NULL);
+ 	anjuta_docman_update_documents_menu (docman);
+ 	g_signal_emit_by_name (docman, "document-added", doc);
+ }
+ 
++static void
++anjuta_docman_add_imultiple_document (AnjutaDocman *docman, IAnjutaDocument *doc,
++							GFile* file)
++{
++    GtkWidget *doc_widget = NULL;
++    AnjutaDocmanPage *page = NULL;
++    IAnjutaEditorMultiple *imultiple;
++    IAnjutaEditorMaster *imaster;
++    g_return_if_fail (IANJUTA_IS_EDITOR_MULTIPLE (doc));
++
++    imultiple = IANJUTA_EDITOR_MULTIPLE(doc);
++    imaster = ianjuta_editor_multiple_get_master (imultiple, NULL);
++
++    /* Add to the editor session. If this is the first document, it
++     * will create widget */
++    if (!ianjuta_editor_master_is_registered (imaster, NULL))
 +    {
++        g_signal_connect (imaster, "document-added",
++                          G_CALLBACK (imultiple_on_document_added), docman);
++        g_signal_connect (imaster, "document-removed",
++                          G_CALLBACK (imultiple_on_document_removed), docman);
++        g_signal_connect (imaster, "current-document-changed",
++                          G_CALLBACK (imultiple_on_current_document_changed), docman);
++        g_signal_connect_after (G_OBJECT (imaster), "destroy",
++                          G_CALLBACK (on_imaster_destroy), docman);
++
++        ianjuta_editor_master_set_registered (imaster, TRUE, NULL);
++    }
++
++    g_object_get (imaster,
++            "parent", &doc_widget,
++            NULL);
++
++    /* Add to the page if it hasn't already done so */
++    if (!doc_widget)
++    {
++        page = anjuta_docman_page_new ();
++        anjuta_docman_page_init (docman, doc, file, page);
++
++        /* list order matches pages in book, initially at least */
++        gtk_notebook_prepend_page_menu (GTK_NOTEBOOK (docman), page->widget,
++                                        page->box, page->menu_box);
++        gtk_notebook_set_tab_reorderable (GTK_NOTEBOOK (docman), page->widget,
++                                         TRUE);
++        /* Store are reference for Anjuta */
++        g_object_ref (imaster);
++    }
++    else
++        page = anjuta_docman_get_page_for_document (docman,
++                ianjuta_editor_master_get_current_document (imaster, NULL));
++
++    /* list order matches pages in book, initially at least */
++    /* Keep track of the document, if not already being kept track of */
++    if (anjuta_docman_get_document_index (docman, doc) == -1)
++    {
++        g_ptr_array_add (docman->priv->doc_table, doc);
++        g_hash_table_insert (docman->priv->doc_page_table, doc, page);
 +        g_object_ref (doc);
 +
 +        g_signal_connect (G_OBJECT (doc), "save_point",
 +                          G_CALLBACK (on_document_save_point), docman);
-+        
-+        g_signal_emit (G_OBJECT (docman), docman_signals[DOC_ADDED], 0, doc);
-+        anjuta_shell_present_widget (docman->shell, GTK_WIDGET (docman->priv->plugin->vbox), NULL);
-+        anjuta_docman_set_current_document (docman, doc);
-+        anjuta_docman_update_documents_menu (docman);
 +    }
- }
- 
++
++	anjuta_docman_set_current_document (docman, doc);
++	anjuta_shell_present_widget (docman->shell, GTK_WIDGET (docman->priv->plugin->vbox), NULL);
++	anjuta_docman_update_documents_menu (docman);
++	g_signal_emit_by_name (docman, "document-added", doc);
++}
++
  void
  anjuta_docman_remove_document (AnjutaDocman *docman, IAnjutaDocument *doc)
  {
- 	AnjutaDocmanPage *page;
-+	/* Check if this page is to be removed */
-+    IAnjutaDocument *next_doc = NULL;
-+	gboolean last_doc = TRUE; 
- 
- 	if (!doc)
- 		doc = anjuta_docman_get_current_document (docman);
-@@ -994,26 +1207,77 @@
+@@ -1027,20 +1165,71 @@
  	if (!doc)
  		return;
- 
--	page = anjuta_docman_get_page_for_document (docman, doc);
--	if (page)
--	{
--		gtk_container_remove (GTK_CONTAINER (page->widget), GTK_WIDGET(doc));
--		g_signal_handlers_block_by_func (G_OBJECT (docman),
--										(gpointer) on_notebook_switch_page,
--										(gpointer) docman);
--		gtk_container_remove (GTK_CONTAINER (docman), page->widget);
--		g_signal_handlers_unblock_by_func (G_OBJECT (docman),
--										  (gpointer) on_notebook_switch_page,
--										  (gpointer) docman);
--		if (page == docman->priv->cur_page)
--			docman->priv->cur_page = NULL;
--		docman->priv->pages = g_list_remove (docman->priv->pages, (gpointer)page);
--		if (!g_list_length (docman->priv->pages))
--				g_signal_emit (G_OBJECT (docman), docman_signals[DOC_CHANGED], 0, NULL);
--		g_free (page);
-+	/* Check if this is the last document, or not. */
+ 	
 +    if (IANJUTA_IS_EDITOR_MULTIPLE (doc))
 +    {
-+		IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL);
-+        if (ianjuta_editor_multiple_has_loaded (IANJUTA_EDITOR_MULTIPLE (doc), NULL))
-+            ianjuta_editor_master_remove_document (imaster, doc, NULL);
-+        else 
-+        {
-+            GList* list;
-+            list = ianjuta_editor_master_list_documents(imaster, NULL);
-+            if (!(last_doc = g_list_length (list) == 0))
-+            {
-+                if (IANJUTA_DOCUMENT(list->data) != doc)
-+                    next_doc = IANJUTA_DOCUMENT (list->data);
-+                else
-+                    next_doc = IANJUTA_DOCUMENT (list->next->data);
-+            }
-+
-+            g_list_free (list);
-+        }
- 	}
--	anjuta_docman_update_documents_menu(docman);
--	g_object_unref (doc);
-+
-+
-+    /* Remove Anjuta's reference if it is either a normal document or it has
-+     * been removed from the editor-master */
-+    if (!IANJUTA_IS_EDITOR_MULTIPLE (doc) || !ianjuta_editor_multiple_has_loaded (IANJUTA_EDITOR_MULTIPLE (doc), NULL))
-+    {
-+        /* If this was the last document or just a single document, remove from view */
-+        if (last_doc)
-+        {
-+            page = anjuta_docman_get_page_for_document (docman, doc);
-+            if (page)
-+            {
-+                GtkWidget *doc_widget;
-+                if (IANJUTA_IS_EDITOR_MULTIPLE (doc))
-+                {
-+                    doc_widget = GTK_WIDGET (ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL));
-+                }
-+                else
-+                    doc_widget = GTK_WIDGET (doc);
-+
-+                /* remove from vbox */
-+                gtk_container_remove (GTK_CONTAINER (page->widget), doc_widget);
-+                g_signal_handlers_block_by_func (G_OBJECT (docman),
-+                                                (gpointer) on_notebook_switch_page,
-+                                                (gpointer) docman);
-+                gtk_container_remove (GTK_CONTAINER (docman), page->widget);
-+                g_signal_handlers_unblock_by_func (G_OBJECT (docman),
-+                                                  (gpointer) on_notebook_switch_page,
-+                                                  (gpointer) docman);
-+                if (page == docman->priv->cur_page)
-+                    docman->priv->cur_page = NULL;
-+                docman->priv->pages = g_list_remove (docman->priv->pages, (gpointer)page);
-+                if (!g_list_length (docman->priv->pages))
-+                        g_signal_emit (G_OBJECT (docman), docman_signals[DOC_CHANGED], 0, NULL);
-+                g_free (page);
-+            }
-+        }
-+        else
-+        {
-+            /* Make sure that the removed document is not the current page's document */
-+            if (page->doc == doc)
-+                page->doc = next_doc;
-+            /* Notify a change in document */
-+            anjuta_docman_set_current_document (docman, NULL);
-+        }
-+        g_object_unref (doc);
-+
-+        anjuta_docman_update_documents_menu(docman);
-+        anjuta_docman_update_documents_menu_status(docman);
++        /* Initiate remote removal */
++        ianjuta_editor_master_remove_document (
++                ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL),
++                doc,
++                NULL);
++        return;
 +    }
++
+ 	page = anjuta_docman_get_page_for_document (docman, doc);
+ 	if (page)
+-	{
+-		gtk_container_remove (GTK_CONTAINER (page->widget), GTK_WIDGET(doc));
+-		gtk_container_remove (GTK_CONTAINER (docman), page->widget);
+-		docman->priv->pages = g_list_remove (docman->priv->pages, (gpointer)page);
+-		if (!g_list_length (docman->priv->pages))
++    {
++        /* Clean up */
++        g_ptr_array_remove (docman->priv->doc_table, doc);
++        g_hash_table_remove (docman->priv->doc_page_table, doc);
++
++        gtk_container_remove (GTK_CONTAINER (page->widget), GTK_WIDGET (doc));
++        gtk_container_remove (GTK_CONTAINER (docman), page->widget);
++
++		if (!docman->priv->doc_table->len)
+ 				g_signal_emit (G_OBJECT (docman), docman_signals[DOC_CHANGED], 0, NULL);
+-		g_free (page);
+-	}
++        g_free (page);
++    }
++    anjuta_docman_set_current_document (docman, NULL);
++
+ 	anjuta_docman_update_documents_menu(docman);
+ 	g_object_unref (doc);
+ }
+ 
++static void
++anjuta_docman_remove_imultiple_document (AnjutaDocman *docman, IAnjutaDocument *doc)
++{
++	AnjutaDocmanPage *page;
++    IAnjutaEditorMaster *imaster;
++
++    g_return_if_fail (IANJUTA_IS_EDITOR_MULTIPLE (doc));
++
++	g_signal_handlers_disconnect_by_func (G_OBJECT (doc),
++										  G_CALLBACK (on_document_save_point),
++										  docman);
++
++    imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL);
++	page = anjuta_docman_get_page_for_document (docman, doc);
++
++    g_ptr_array_remove (docman->priv->doc_table, doc);
++    g_hash_table_remove (docman->priv->doc_page_table, doc);
++
++    /* If there are no more open documents, remove the page */
++    if (page && !anjuta_docman_get_document_for_page (docman, page))
++    {
++        /* Make sure that there are no open documents with this page */
++        gtk_container_remove (GTK_CONTAINER (page->widget), GTK_WIDGET (imaster));
++        gtk_container_remove (GTK_CONTAINER (docman), page->widget);
++
++		if (!docman->priv->doc_table->len)
++				g_signal_emit (G_OBJECT (docman), docman_signals[DOC_CHANGED], 0, NULL);
++        g_free (page);
++    }
++
++    anjuta_docman_set_current_document (docman, NULL);
++	anjuta_docman_update_documents_menu(docman);
++	g_object_unref (doc);
++}
++
+ void
+ anjuta_docman_set_popup_menu (AnjutaDocman *docman, GtkWidget *menu)
+ {
+@@ -1072,61 +1261,92 @@
+ }
+ 
+ static AnjutaDocmanPage *
+-anjuta_docman_get_page_for_document (AnjutaDocman *docman, IAnjutaDocument *doc)
++anjuta_docman_get_page_for_document (AnjutaDocman *docman, 
++                                IAnjutaDocument *doc)
+ {
+-	GList *node;
+-	node = docman->priv->pages;
+-	while (node)
+-	{
+-		AnjutaDocmanPage *page;
++    return (AnjutaDocmanPage*) g_hash_table_lookup (docman->priv->doc_page_table, doc);
++}
+ 
+-		page = node->data;
+-		g_assert (page);
+-		if (page->doc == doc)
+-			return page;
+-		node = g_list_next (node);
+-	}
+-	return NULL;
++static
++IAnjutaDocument *
++anjuta_docman_get_document_for_page (AnjutaDocman *docman,
++									AnjutaDocmanPage *page)
++{
++    int i;
++    int n = docman->priv->doc_table->len;
++
++    if (!page) return NULL;
++
++    for (i=0; i < n; i++)
++    {
++        IAnjutaDocument *doc = anjuta_docman_get_nth_document (docman, i);
++        if (anjuta_docman_get_page_for_document (docman, doc) == page)
++        {
++            if (IANJUTA_IS_EDITOR_MULTIPLE (doc))
++            {
++                IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (
++                        IANJUTA_EDITOR_MULTIPLE (doc), NULL);
++                return ianjuta_editor_master_get_current_document (imaster, NULL);
++            }
++            else
++                return doc;
++        }
++    }
++    return NULL;
+ }
+ 
+ static AnjutaDocmanPage *
+ anjuta_docman_get_nth_page (AnjutaDocman *docman, gint page_num)
+ {
+ 	GtkWidget *widget;
+-	GList *node;
++    gint i;
++    gint n = docman->priv->doc_table->len;
+ 
+ 	widget = gtk_notebook_get_nth_page (GTK_NOTEBOOK (docman), page_num);
+-	node = docman->priv->pages;
+-	while (node)
++    for (i=0; i < n; i++)
+ 	{
+-		AnjutaDocmanPage *page;
++        IAnjutaDocument *doc = anjuta_docman_get_nth_document (docman, i);
++		AnjutaDocmanPage *page = anjuta_docman_get_page_for_document (docman, doc);
+ 
+-		page = node->data;
+-		g_assert (page);
+-		if (page->widget == widget)
++		if (page && page->widget == widget)
+ 			return page;
+-		node = g_list_next (node);
+ 	}
+ 	
+ 	return NULL;
+ }
+ 
++IAnjutaDocument * anjuta_docman_get_document_for_nth_page (AnjutaDocman *docman, 
++                                                     gint page_num)
++{
++    return anjuta_docman_get_document_for_page (docman,
++           anjuta_docman_get_nth_page (docman, page_num)); 
++}
++
+ static AnjutaDocmanPage*
+ anjuta_docman_get_current_page (AnjutaDocman* docman)
+ {
+-	AnjutaDocmanPage* page = anjuta_docman_get_nth_page (docman,
+-														 gtk_notebook_get_current_page(GTK_NOTEBOOK(docman)));
++	AnjutaDocmanPage* page = anjuta_docman_get_page_for_document (docman, 
++            anjuta_docman_get_current_document (docman));
++
+ 	return page;
+ }
+ 
++gint anjuta_docman_get_current_document_index (AnjutaDocman *docman) {
++    return docman->priv->cur_doc;
++}
++
++gint anjuta_docman_get_document_count (AnjutaDocman *docman) {
++    return docman->priv->doc_table->len;
++}
++
+ IAnjutaDocument *
+ anjuta_docman_get_current_document (AnjutaDocman *docman)
+ {
+-	AnjutaDocmanPage* page = anjuta_docman_get_current_page (docman);
+-	if (page)
+-		return page->doc;
+-	else
+-		return NULL;
++    if (docman->priv->cur_doc == -1)
++        return NULL;
++    else
++        return anjuta_docman_get_nth_document (docman, 
++                docman->priv->cur_doc);
  }
  
  void
-@@ -1057,8 +1321,20 @@
- 
- 		page = node->data;
- 		g_assert (page);
--		if (page->doc == doc)
-+		/* Check if the current page is a EditorMultiple. If so, check if the
-+		 * current document is managed by it. */
-+		if (IANJUTA_IS_EDITOR_MULTIPLE (doc) && IANJUTA_IS_EDITOR_MULTIPLE (page->doc))
-+		{
-+            /* We can't do master_has_document because the document may already
-+             * have been removed from the master. So, instead just check if they
-+             * share a common parent */
-+            if (ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), 0) ==
-+                    ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), 0))
-+                return page;
-+		}
-+		else if (page->doc == doc)
- 			return page;
-+
- 		node = g_list_next (node);
- 	}
- 	return NULL;
-@@ -1109,11 +1385,13 @@
+@@ -1144,6 +1364,7 @@
  		if (page)
  		{
  			gint page_num;
-+			gboolean change_page = TRUE;
-+			AnjutaDocmanPage *oldpage;
 +            GtkWidget *doc_widget;
-+			oldpage = docman->priv->cur_page;
  
  			if (defdoc != NULL)
  			{
--				AnjutaDocmanPage *oldpage;
--				oldpage = docman->priv->cur_page;
- 				if (oldpage)
- 				{
- 					oldpage->is_current = FALSE;
-@@ -1127,32 +1405,42 @@
- 			}
- 
- 			docman->priv->current_document = doc;
--			docman->priv->cur_page = page;
--
--			page->is_current = TRUE;
--			if (page->close_button != NULL)
-+			if (IANJUTA_IS_EDITOR_MULTIPLE(page->doc))
- 			{
--				gtk_widget_set_sensitive (page->close_image, TRUE);
--				if (page->mime_icon)
--					gtk_widget_set_sensitive (page->mime_icon, TRUE);
-+				IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+				ianjuta_editor_master_set_current_document (imaster, doc, NULL);
-+				change_page = (page != oldpage);
-+                doc_widget = GTK_WIDGET(imaster);
- 			}
--			page_num = gtk_notebook_page_num (GTK_NOTEBOOK (docman),
--											  page->widget);
--			g_signal_handlers_block_by_func (G_OBJECT (docman),
--											(gpointer) on_notebook_switch_page,
--											(gpointer) docman);
--			gtk_notebook_set_current_page (GTK_NOTEBOOK (docman), page_num);
--			g_signal_handlers_unblock_by_func (G_OBJECT (docman),
--											  (gpointer) on_notebook_switch_page,
--											  (gpointer) docman);
-+            else
-+                doc_widget = GTK_WIDGET(doc);
- 
--			if (anjuta_preferences_get_int (ANJUTA_PREFERENCES (docman->priv->preferences),
--											EDITOR_TABS_ORDERING))
--				anjuta_docman_order_tabs (docman);
-+            docman->priv->cur_page = page;
+@@ -1176,10 +1397,19 @@
+ 											EDITOR_TABS_ORDERING))
+ 				anjuta_docman_order_tabs (docman);
  
 -			gtk_widget_grab_focus (GTK_WIDGET (doc));
--			anjuta_docman_grab_text_focus (docman);
--			ianjuta_document_grab_focus (IANJUTA_DOCUMENT (doc), NULL);
-+            page->is_current = TRUE;
-+            if (page->close_button != NULL)
-+            {
-+                gtk_widget_set_sensitive (page->close_image, TRUE);
-+                if (page->mime_icon)
-+                    gtk_widget_set_sensitive (page->mime_icon, TRUE);
-+            }
-+            page_num = gtk_notebook_page_num (GTK_NOTEBOOK (docman),
-+                                              page->widget);
-+            g_signal_handlers_block_by_func (G_OBJECT (docman),
-+                                            (gpointer) on_notebook_switch_page,
-+                                            (gpointer) docman);
-+            gtk_notebook_set_current_page (GTK_NOTEBOOK (docman), page_num);
-+            g_signal_handlers_unblock_by_func (G_OBJECT (docman),
-+                                              (gpointer) on_notebook_switch_page,
-+                                              (gpointer) docman);
-+
-+            if (anjuta_preferences_get_int (ANJUTA_PREFERENCES (docman->priv->preferences),
-+                                            EDITOR_TABS_ORDERING))
-+                anjuta_docman_order_tabs (docman);
-+
-+            gtk_widget_grab_focus (doc_widget);
-+            anjuta_docman_grab_text_focus (docman);
-+            ianjuta_document_grab_focus (IANJUTA_DOCUMENT (doc), NULL);
++			if (IANJUTA_IS_EDITOR_MULTIPLE(doc))
++			{
++				IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL);
++				ianjuta_editor_master_set_current_document (imaster, doc, NULL);
++                doc_widget = GTK_WIDGET(imaster);
++			}
++            else
++                doc_widget = GTK_WIDGET(doc);
++			gtk_widget_grab_focus (doc_widget);
+ 			anjuta_docman_grab_text_focus (docman);
+ 			ianjuta_document_grab_focus (IANJUTA_DOCUMENT (doc), NULL);
  		}
++        docman->priv->cur_doc = anjuta_docman_get_document_index (docman, doc);
  	}
  	else /* doc == NULL */
-@@ -1328,8 +1616,23 @@
- 		AnjutaDocmanPage *page;
- 
- 		page = (AnjutaDocmanPage *) node->data;
--		if (strcmp (fname, ianjuta_document_get_filename (page->doc, NULL)) == 0)
-+		if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc))
- 		{
-+			IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+			GList* node_ = NULL;
-+			GList* list = ianjuta_editor_master_list_documents(imaster, NULL);
-+			for (node_ = list; node_ != NULL; node_ = g_list_next (node_))
-+			{
-+				if (strcmp (fname, ianjuta_document_get_filename (IANJUTA_DOCUMENT(node_->data), NULL)) == 0)
-+				{
-+					g_free (fname);
-+					return ianjuta_file_get_file (IANJUTA_FILE (node_->data), NULL);
-+				}
-+			}
-+			g_list_free (list);
-+		}
-+		else if (strcmp (fname, ianjuta_document_get_filename (page->doc, NULL)) == 0)
-+		{
- 			g_free (fname);
- 			return ianjuta_file_get_file (IANJUTA_FILE (page->doc), NULL);
- 		}
-@@ -1352,19 +1655,39 @@
  	{
- 		AnjutaDocmanPage* page;
- 		page = (AnjutaDocmanPage *)node->data;
--		if (page && page->doc == doc)
-+		if (page)
+@@ -1197,6 +1427,7 @@
+ 				}
+ 			}
+ 		}
++        docman->priv->cur_doc = -1;
+ 	}
+ }
+ 
+@@ -1312,9 +1543,10 @@
+ anjuta_docman_get_file (AnjutaDocman *docman, const gchar *fn)
+ {
+ 	IAnjutaDocument *doc;
+-	GList *node;
+ 	gchar *real_path;
+ 	gchar *fname;
++	gint i;
++    gint n = docman->priv->doc_table->len;
+ 	
+ 	g_return_val_if_fail (fn, NULL);
+ 	
+@@ -1346,15 +1578,14 @@
+ 		}
+ 	}
+ 	/* Next, see if the name matches any of the opened files */
+-	for (node = docman->priv->pages; node != NULL; node = g_list_next (node))
++    for (i = 0; i < n; i++)
+ 	{
+-		AnjutaDocmanPage *page;
++        IAnjutaDocument *doc = anjuta_docman_get_nth_document (docman, i);
+ 
+-		page = (AnjutaDocmanPage *) node->data;
+-		if (strcmp (fname, ianjuta_document_get_filename (page->doc, NULL)) == 0)
++		if (strcmp (fname, ianjuta_document_get_filename (doc, NULL)) == 0)
  		{
- 			gint curindx;
+ 			g_free (fname);
+-			return ianjuta_file_get_file (IANJUTA_FILE (page->doc), NULL);
++			return ianjuta_file_get_file (IANJUTA_FILE (doc), NULL);
+ 		}
+ 	}
+ 	g_free (fname);
+@@ -1364,33 +1595,23 @@
+ void
+ anjuta_docman_present_notebook_page (AnjutaDocman *docman, IAnjutaDocument *doc)
+ {
+-	GList *node;
++    AnjutaDocmanPage *page;
++    gint curindx;
+ 
+-	if (!doc)
+-		return;
++	if (!doc) return;
+ 
+-	node = docman->priv->pages;
++    page = anjuta_docman_get_page_for_document (docman, doc);
++    if (!page) return;
+ 
+-	while (node)
+-	{
+-		AnjutaDocmanPage* page;
+-		page = (AnjutaDocmanPage *)node->data;
+-		if (page && page->doc == doc)
+-		{
+-			gint curindx;
 -			curindx = gtk_notebook_page_num (GTK_NOTEBOOK (docman), page->widget);
 -			if (curindx != -1)
-+            curindx = gtk_notebook_page_num (GTK_NOTEBOOK (docman), page->widget);
-+			if (page->doc == doc)
- 			{
+-			{
 -				if (curindx != gtk_notebook_get_current_page (GTK_NOTEBOOK (docman)))
 -					gtk_notebook_set_current_page (GTK_NOTEBOOK (docman), curindx);
 -				else
 -					/* Make sure current page is visible */
 -					anjuta_docman_grab_text_focus (docman);
-+				if (curindx != -1)
-+				{
-+					/* The page may still not be the editor tab */
-+					if (curindx != gtk_notebook_get_current_page (GTK_NOTEBOOK (docman)))
-+						gtk_notebook_set_current_page (GTK_NOTEBOOK (docman), curindx);
-+					else
-+						/* Make sure current page is visible */
-+						anjuta_docman_grab_text_focus (docman);
-+				}
-+				break;
- 			}
+-			}
 -			break;
-+			else if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc))
-+			{
-+				IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL);
-+				if (ianjuta_editor_master_has_document (imaster, doc, NULL))
-+				{
-+					ianjuta_editor_master_set_current_document (imaster, doc, NULL);
-+
-+					/* The page may still not be the editor tab */
-+					if (curindx != gtk_notebook_get_current_page (GTK_NOTEBOOK (docman)))
-+						gtk_notebook_set_current_page (GTK_NOTEBOOK (docman), curindx);
-+					else
-+						/* Make sure current page is visible */
-+						anjuta_docman_grab_text_focus (docman);
-+				}
-+				break;
-+			}
- 		}
- 		node = g_list_next (node);
- 	}
-@@ -1387,7 +1710,7 @@
- 	page = anjuta_docman_get_page_for_document (docman, doc);
- 	if (!page || page->label == NULL || page->menu_label == NULL)
- 		return;
--	
-+
- 	if (!ianjuta_file_savable_is_dirty(IANJUTA_FILE_SAVABLE (doc), NULL))
+-		}
+-		node = g_list_next (node);
+-	}
++    curindx = gtk_notebook_page_num (GTK_NOTEBOOK (docman), page->widget);
++    if (curindx != -1)
++    {
++        if (curindx != gtk_notebook_get_current_page (GTK_NOTEBOOK (docman)))
++            gtk_notebook_set_current_page (GTK_NOTEBOOK (docman), curindx);
++        else
++            /* Make sure current page is visible */
++            anjuta_docman_grab_text_focus (docman);
++    }
+ }
+ 
+ static void
+@@ -1458,18 +1679,18 @@
+ void
+ anjuta_docman_delete_all_markers (AnjutaDocman *docman, gint marker)
+ {
+-	GList *node;
++    gint i;
++    gint n = docman->priv->doc_table->len;
+ 
+-	for (node = docman->priv->pages; node != NULL; node = g_list_next (node))
++    for (i = 0; i < n; i++)
  	{
- 		dirty_char = "";
-@@ -1445,9 +1768,24 @@
- 		if (IANJUTA_IS_EDITOR (page->doc))
+-		AnjutaDocmanPage *page;
++        IAnjutaDocument *doc = anjuta_docman_get_nth_document (docman, i);
+ 
+-		page = (AnjutaDocmanPage *) node->data;
+-		if (IANJUTA_IS_EDITOR (page->doc))
++		if (IANJUTA_IS_EDITOR (doc))
  		{
  			IAnjutaEditor* te;
--
+ 
 -			te = IANJUTA_EDITOR (page->doc);
--			ianjuta_markable_delete_all_markers (IANJUTA_MARKABLE (te), marker, NULL);
-+			if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc)) 
-+			{
-+				IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+				GList *node_ = NULL;
-+				GList* list = ianjuta_editor_master_list_documents(imaster, NULL);
-+				for (node_ = list; node_ != NULL; node_ = g_list_next (node_))
-+				{
-+					IAnjutaDocument *doc = IANJUTA_DOCUMENT (node_-> data);
-+					te = IANJUTA_EDITOR (doc);
-+					ianjuta_markable_delete_all_markers (IANJUTA_MARKABLE (te), marker, NULL);
-+				}
-+				g_list_free(list);
-+			}
-+			else
-+			{
-+				te = IANJUTA_EDITOR (page->doc);
-+				ianjuta_markable_delete_all_markers (IANJUTA_MARKABLE (te), marker, NULL);
-+			}
++			te = IANJUTA_EDITOR (doc);
+ 			ianjuta_markable_delete_all_markers (IANJUTA_MARKABLE (te), marker, NULL);
  		}
  	}
- }
-@@ -1464,7 +1802,22 @@
- 		page = (AnjutaDocmanPage *) node->data;
- 		if (IANJUTA_IS_EDITOR (page->doc))
+@@ -1478,16 +1699,19 @@
+ void
+ anjuta_docman_delete_all_indicators (AnjutaDocman *docman)
+ {
+-	GList *node;
++    gint i;
++    gint n = docman->priv->doc_table->len;
+ 
+-	for (node = docman->priv->pages; node; node = g_list_next (node))
++    for (i = 0; i < n; i++)
+ 	{
+-		AnjutaDocmanPage *page;
++        IAnjutaDocument *doc = anjuta_docman_get_nth_document (docman, i);
+ 
+-		page = (AnjutaDocmanPage *) node->data;
+-		if (IANJUTA_IS_EDITOR (page->doc))
++		if (IANJUTA_IS_EDITOR (doc))
  		{
 -			ianjuta_markable_unmark (IANJUTA_MARKABLE (page->doc), -1, -1, NULL);
-+			if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc)) 
-+			{
-+				IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+				GList *node_ = NULL;
-+				GList* list = ianjuta_editor_master_list_documents(imaster, NULL);
-+				for (node_ = list; node_ != NULL; node_ = g_list_next (node_))
-+				{
-+					IAnjutaDocument *doc = IANJUTA_DOCUMENT (node_-> data);
-+					ianjuta_markable_unmark (IANJUTA_MARKABLE (doc), -1, -1, NULL);
-+				}
-+				g_list_free (list);
-+			}
-+			else
-+			{
-+				ianjuta_markable_unmark (IANJUTA_MARKABLE (page->doc), -1, -1, NULL);
-+			}
- 		}
- 	}
- }
-@@ -1546,7 +1899,15 @@
- 		{
- 			page = node->data;
- 			tab_labels[i].m_widget = page->widget; /* CHECKME needed ? */
--			tab_labels[i].m_label = ianjuta_document_get_filename (page->doc, NULL);
-+			if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc))
-+			{
-+				IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+				tab_labels[i].m_label = ianjuta_document_get_filename (
-+						ianjuta_editor_master_get_current_document(imaster, NULL),
-+							NULL);
-+			}
-+			else
-+				tab_labels[i].m_label = ianjuta_document_get_filename (page->doc, NULL);
- 			node = g_list_next (node);
- 		}
- 	}
-@@ -1582,16 +1943,41 @@
- 				IAnjutaDocument *doc;
- 				GFile* doc_file;
- 
--				doc = page->doc;
--				doc_file = ianjuta_file_get_file (IANJUTA_FILE (doc), NULL);
--				if (doc_file)
-+				if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc)) 
- 				{
--					if (g_file_equal (file, doc_file))
-+					IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+					GList *node_ = NULL;
-+					GList *list = ianjuta_editor_master_list_documents (imaster, NULL);
-+					for (node_ = list; node_ != NULL; node_ = g_list_next (node_))
- 					{
-+						doc = IANJUTA_DOCUMENT (node_-> data);
-+						doc_file = ianjuta_file_get_file (IANJUTA_FILE (doc), NULL);
-+						if (doc_file)
-+						{
-+							if (g_file_equal (file, doc_file))
-+							{
-+								g_object_unref (doc_file);
-+								return doc;
-+							}
-+							g_object_unref (doc_file);
-+						}
-+					}
-+					g_list_free (list);
-+				}
-+				else
-+				{
++			IAnjutaEditor* te;
 +
-+					doc = page->doc;
-+					doc_file = ianjuta_file_get_file (IANJUTA_FILE (doc), NULL);
-+					if (doc_file)
-+					{
-+						if (g_file_equal (file, doc_file))
-+						{
-+							g_object_unref (doc_file);
-+							return doc;
-+						}
- 						g_object_unref (doc_file);
--						return doc;
- 					}
--					g_object_unref (doc_file);
- 				}
- 			}
++			te = IANJUTA_EDITOR (doc);
++			ianjuta_markable_unmark (IANJUTA_MARKABLE (doc), -1, -1, NULL);
  		}
-@@ -1599,6 +1985,7 @@
- 	return NULL;
+ 	}
+ }
+@@ -1551,7 +1775,6 @@
+ anjuta_docman_order_tabs (AnjutaDocman *docman)
+ {
+ 	gint i, num_pages;
+-	GList *node;
+ 	AnjutaDocmanPage *page;
+ 	order_struct *tab_labels;
+ 	GtkNotebook *notebook;
+@@ -1562,17 +1785,16 @@
+ 	if (num_pages < 2)
+ 		return;
+ 	tab_labels = g_new0 (order_struct, num_pages);
+-	node = docman->priv->pages;
++
+ 	for (i = 0; i < num_pages; i++)
+ 	{
+-		if (node != NULL && node->data != NULL)
+-		{
+-			page = node->data;
+-			tab_labels[i].m_widget = page->widget; /* CHECKME needed ? */
+-			tab_labels[i].m_label = ianjuta_document_get_filename (page->doc, NULL);
+-			node = g_list_next (node);
+-		}
++        page = anjuta_docman_get_nth_page (docman, i);
++        tab_labels[i].m_widget = page->widget; /* CHECKME needed ? */
++        tab_labels[i].m_label = ianjuta_document_get_filename (
++            anjuta_docman_get_document_for_page (docman, page), 
++                NULL);
+ 	}
++
+ 	qsort (tab_labels, num_pages, sizeof(order_struct), do_ordertab1);
+ 	g_signal_handlers_block_by_func (G_OBJECT (notebook),
+ 									(gpointer) on_notebook_page_reordered,
+@@ -1590,7 +1812,8 @@
+ anjuta_docman_get_document_for_file (AnjutaDocman *docman, GFile* file)
+ {
+ 	IAnjutaDocument *file_doc = NULL;
+-	GList *node;
++    gint i;
++    gint n = docman->priv->doc_table->len;
+ 	gchar *path;
+ 	gchar *local_real_path = NULL;
+ 	
+@@ -1604,72 +1827,91 @@
+ 		g_free (path);
+ 	}
+ 	
+-	for (node = docman->priv->pages; node != NULL; node = g_list_next (node))
++    for (i = 0; i < n; i++)
+ 	{
+-		AnjutaDocmanPage *page;
+ 		GFile* doc_file;
++        IAnjutaDocument *doc = anjuta_docman_get_nth_document (docman, i);
+ 							
+-		page = (AnjutaDocmanPage *) node->data;
+-
+-		if (page && page->widget && IANJUTA_IS_DOCUMENT (page->doc))
+-		{
+-			IAnjutaDocument *doc;
+-				
+-			doc = page->doc;
+-			doc_file = ianjuta_file_get_file (IANJUTA_FILE (doc), NULL);
+-			if (doc_file)
+-			{
+-					
+-				/* Try exact match first */
+-				if (g_file_equal (file, doc_file))
+-				{
+-					g_object_unref (doc_file);
+-					file_doc = doc;
+-					break;
+-				}
+-					
+-				/* Try a local file alias */
+-				if ((file_doc == NULL) && (local_real_path))
+-				{
+-					gchar *path = g_file_get_path (doc_file);
+-					if (path)
+-					{
+-						gchar *doc_real_path = anjuta_util_get_real_path (path);
+-						g_free (path);
+-						if ((strcmp (doc_real_path, local_real_path) == 0))
+-						{
+-							file_doc = doc;
+-						}
+-						g_free (doc_real_path);
+-					}
+-				}
+-				g_object_unref (doc_file);
+-			}
+-		}
++        doc_file = ianjuta_file_get_file (IANJUTA_FILE (doc), NULL);
++        if (doc_file)
++        {
++            /* Try exact match first */
++            if (g_file_equal (file, doc_file))
++            {
++                g_object_unref (doc_file);
++                file_doc = doc;
++                break;
++            }
++                
++            /* Try a local file alias */
++            if ((file_doc == NULL) && (local_real_path))
++            {
++                gchar *path = g_file_get_path (doc_file);
++                if (path)
++                {
++                    gchar *doc_real_path = anjuta_util_get_real_path (path);
++                    g_free (path);
++                    if ((strcmp (doc_real_path, local_real_path) == 0))
++                    {
++                        file_doc = doc;
++                    }
++                    g_free (doc_real_path);
++                }
++            }
++            g_object_unref (doc_file);
++        }
+ 	}
+ 	g_free (local_real_path);
+ 
+ 	return file_doc;
  }
  
-+/* NOTE: This should probably be called get_all_documents. It's returning a set of IAnjutaDocuments */
++/* Should be docs */
  GList*
  anjuta_docman_get_all_doc_widgets (AnjutaDocman *docman)
  {
-@@ -1611,7 +1998,19 @@
- 		AnjutaDocmanPage *page;
- 		page = (AnjutaDocmanPage *) node->data;
- 		if (page && page->doc)
+ 	GList *wids;
+-	GList *node;
++    gint i;
++    gint n = docman->priv->doc_table->len;
+ 	
+ 	wids = NULL;
+-	for (node = docman->priv->pages; node != NULL; node = g_list_next (node))
++    for (i = 0; i < n; i++)
+ 	{
+-		AnjutaDocmanPage *page;
+-		page = (AnjutaDocmanPage *) node->data;
+-		if (page && page->doc)
 -			wids = g_list_prepend (wids, page->doc);
-+		{
-+			if (IANJUTA_IS_EDITOR_MULTIPLE (page->doc))
-+			{
-+				IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(page->doc), NULL);
-+				GList* node_ = NULL;
-+				GList* list = ianjuta_editor_master_list_documents (imaster, NULL);
-+				for (node_ = list; node_ != NULL; node_ = g_list_next (node_))
-+					wids = g_list_prepend (wids, IANJUTA_DOCUMENT(node_->data));
-+				g_list_free (list);
-+			}
-+			else
-+				wids = g_list_prepend (wids, page->doc);
-+		}
++        IAnjutaDocument *doc = anjuta_docman_get_nth_document (docman, i);
++        wids = g_list_prepend (wids, doc);
  	}
  	if (wids)
  		wids = g_list_reverse (wids);
+ 	return wids;
+ }
+ 
++
++static void
++imultiple_on_document_removed (GtkWidget *widget, IAnjutaDocument *doc, AnjutaDocman *docman)
++{
++	anjuta_docman_remove_imultiple_document (docman, doc);
++}
++
++static void
++imultiple_on_current_document_changed (GtkWidget *widget, IAnjutaDocument *doc, AnjutaDocman *docman)
++{
++	anjuta_docman_set_current_document (docman, doc);
++}
++
++static void
++imultiple_on_document_added (GtkWidget *widget, IAnjutaDocument *doc, AnjutaDocman *docman)
++{
++	anjuta_docman_add_imultiple_document (docman, doc, NULL);
++}
++
++static void
++on_imaster_destroy (IAnjutaEditorMaster *imaster, AnjutaDocman *docman)
++{
++	g_signal_handlers_disconnect_by_func (G_OBJECT (imaster),
++										  G_CALLBACK (on_imaster_destroy),
++										  docman);
++}
++
++
+ ANJUTA_TYPE_BEGIN(AnjutaDocman, anjuta_docman, GTK_TYPE_NOTEBOOK);
+ ANJUTA_TYPE_END;
+Index: plugins/document-manager/anjuta-docman.h
+===================================================================
+--- plugins/document-manager/anjuta-docman.h	(revision 4475)
++++ plugins/document-manager/anjuta-docman.h	(working copy)
+@@ -66,10 +66,14 @@
+ 
+ void anjuta_docman_remove_document (AnjutaDocman *docman, IAnjutaDocument *doc);
+ 
++IAnjutaDocument *anjuta_docman_get_nth_document (AnjutaDocman *docman, gint n);
+ IAnjutaDocument *anjuta_docman_get_current_document (AnjutaDocman *docman);
++gint anjuta_docman_get_current_document_index (AnjutaDocman *docman);
++gint anjuta_docman_get_document_count (AnjutaDocman *docman);
+ IAnjutaDocument *anjuta_docman_get_document_for_file (AnjutaDocman *docman,
+ 													  GFile* file);
+-
++IAnjutaDocument * anjuta_docman_get_document_for_nth_page (AnjutaDocman *docman, 
++                                                     gint page_num);
+ GtkWidget *anjuta_docman_get_current_focus_widget (AnjutaDocman *docman);
+ 
+ GtkWidget *anjuta_docman_get_current_popup (AnjutaDocman *docman);
 Index: plugins/document-manager/action-callbacks.c
 ===================================================================
---- plugins/document-manager/action-callbacks.c	(revision 4350)
+--- plugins/document-manager/action-callbacks.c	(revision 4475)
 +++ plugins/document-manager/action-callbacks.c	(working copy)
-@@ -23,6 +23,8 @@
- 
- #include <libanjuta/interfaces/ianjuta-markable.h>
- #include <libanjuta/interfaces/ianjuta-editor.h>
-+#include <libanjuta/interfaces/ianjuta-editor-multiple.h>
-+#include <libanjuta/interfaces/ianjuta-editor-master.h>
- #include <libanjuta/interfaces/ianjuta-editor-selection.h>
- #include <libanjuta/interfaces/ianjuta-editor-convert.h>
- #include <libanjuta/interfaces/ianjuta-editor-line-mode.h>
-@@ -187,7 +189,10 @@
- 		GFile* file;
- 		AnjutaSavePrompt *save_prompt;
- 		
--		parent = gtk_widget_get_toplevel (GTK_WIDGET (doc));
-+		if (IANJUTA_IS_EDITOR_MULTIPLE (doc))
-+			parent = gtk_widget_get_toplevel (GTK_WIDGET(ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE (doc), NULL)));
-+		else
-+			parent = gtk_widget_get_toplevel (GTK_WIDGET (doc));
- 		/* Prompt for unsaved data */
- 		save_prompt = anjuta_save_prompt_new (GTK_WINDOW (parent));
- 		file = ianjuta_file_get_file (IANJUTA_FILE (doc), NULL);
-@@ -268,7 +273,10 @@
- 	if (doc == NULL)
- 		return;
- 
--	parent = gtk_widget_get_toplevel (GTK_WIDGET (doc));
-+	if (IANJUTA_IS_EDITOR_MULTIPLE (doc))
-+		parent = gtk_widget_get_toplevel (GTK_WIDGET(ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE (doc), NULL)));
-+	else
-+		parent = gtk_widget_get_toplevel (GTK_WIDGET (doc));
- 	msg = g_strdup_printf (
- 	_("Are you sure you want to reload '%s'?\nAny unsaved changes will be lost."),
- 							ianjuta_document_get_filename (doc, NULL));
-@@ -937,9 +945,21 @@
- {
- 	AnjutaDocman *docman;
+@@ -876,9 +876,10 @@
  	DocmanPlugin *plugin;
-+	IAnjutaDocument *doc;
  	plugin = ANJUTA_PLUGIN_DOCMAN (user_data);
  	docman = ANJUTA_DOCMAN (plugin->docman);
 -	
-+	doc = anjuta_docman_get_current_document (docman);
+-	gtk_notebook_set_current_page (GTK_NOTEBOOK (docman),
+-								   gtk_notebook_get_current_page (GTK_NOTEBOOK(docman)) + 1);
++    gint n = gtk_notebook_get_current_page (GTK_NOTEBOOK(docman));
 +
-+	if (IANJUTA_IS_EDITOR_MULTIPLE (doc))
-+	{
-+		IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL);
-+		GList* list = ianjuta_editor_master_list_documents (imaster, NULL);
-+		GList *node = g_list_find (list, doc);
-+		ianjuta_editor_master_set_current_document (imaster,
-+				IANJUTA_DOCUMENT (g_list_next(node)->data),NULL);
-+		g_list_free (list);
-+	}
-+	else
- 	gtk_notebook_set_current_page (GTK_NOTEBOOK (docman),
- 								   gtk_notebook_get_current_page (GTK_NOTEBOOK(docman)) + 1);
++    anjuta_docman_set_current_document (docman,
++            anjuta_docman_get_document_for_nth_page (docman, n+1));
  }
-@@ -948,9 +968,21 @@
- {
- 	AnjutaDocman *docman;
+ 
+ void on_previous_document (GtkAction *action, gpointer user_data)
+@@ -887,7 +888,8 @@
  	DocmanPlugin *plugin;
-+	IAnjutaDocument *doc;
  	plugin = ANJUTA_PLUGIN_DOCMAN (user_data);
  	docman = ANJUTA_DOCMAN (plugin->docman);
-+	doc = anjuta_docman_get_current_document (docman);
- 	
+-	
 -	gtk_notebook_set_current_page (GTK_NOTEBOOK (docman),
 -								   gtk_notebook_get_current_page (GTK_NOTEBOOK(docman)) - 1);
-+	if (IANJUTA_IS_EDITOR_MULTIPLE (doc))
-+	{
-+		IAnjutaEditorMaster *imaster = ianjuta_editor_multiple_get_master (IANJUTA_EDITOR_MULTIPLE(doc), NULL);
-+		GList* list = ianjuta_editor_master_list_documents (imaster, NULL);
-+		GList *node = g_list_find (list, doc);
-+		ianjuta_editor_master_set_current_document (imaster,
-+				IANJUTA_DOCUMENT (g_list_previous(node)->data),NULL);
-+		g_list_free (list);
-+	}
-+	else
-+		gtk_notebook_set_current_page (GTK_NOTEBOOK (docman),
-+									   gtk_notebook_get_current_page (GTK_NOTEBOOK(docman)) - 1);
++    gint n = gtk_notebook_get_current_page (GTK_NOTEBOOK(docman));
++
++    anjuta_docman_set_current_document (docman,
++            anjuta_docman_get_document_for_nth_page (docman, n-1));
  }
 Index: libanjuta/interfaces/libanjuta.idl
 ===================================================================
---- libanjuta/interfaces/libanjuta.idl	(revision 4350)
+--- libanjuta/interfaces/libanjuta.idl	(revision 4475)
 +++ libanjuta/interfaces/libanjuta.idl	(working copy)
-@@ -1502,6 +1502,7 @@
+@@ -1588,6 +1588,7 @@
  	 */
  	interface IAnjutaEditorSelection
  	{
@@ -1042,7 +1191,7 @@ Index: libanjuta/interfaces/libanjuta.idl
  		#include <libanjuta/interfaces/ianjuta-editor-cell.h>
  		/**
  		 * ianjuta_editor_selection_has_selection:
-@@ -1811,9 +1812,10 @@
+@@ -1906,9 +1907,10 @@
  		void hide_suggestions ();
  		
  		/**
@@ -1054,7 +1203,7 @@ Index: libanjuta/interfaces/libanjuta.idl
  		 * @char_alignment: Character alignment.
  		 * @err: Error propagation and reporting
  		 *
-@@ -2131,9 +2133,190 @@
+@@ -2256,9 +2258,190 @@
  		void matching_brace();
  		
  	}
