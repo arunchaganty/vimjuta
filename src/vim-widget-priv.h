@@ -40,8 +40,8 @@ struct _VimWidgetPrivate
 	gchar *servername;
 	GdkWindow *vim;
 
-	GList* documents; 
-	GList* unloaded; 
+	GPtrArray* documents; 
+	GPtrArray* unloaded; 
 	gint page_no;
 	gboolean registered;
 	VimEditor *current_editor;

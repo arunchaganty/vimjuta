@@ -38,14 +38,24 @@
 
 static GObjectClass* parent_class;
 
+static gint
+g_ptr_array_find (GPtrArray *array, gpointer ptr)
+{
+    int i,n;
+    n = array->len;
+    for (i=0; i<n; i++)
+        if (g_ptr_array_index (array, i) == ptr) return i;
+    return -1;
+}
+
 void
 vim_widget_add_document (VimWidget *widget, VimEditor *editor, GError **err)
 {
 	g_assert (editor != NULL);
 	if (!vim_widget_has_editor (widget, editor)) 
 	{
-		if (!g_list_find(widget->priv->unloaded, editor))
-			widget->priv->unloaded = g_list_prepend (widget->priv->unloaded, editor);
+		if (g_ptr_array_find (widget->priv->unloaded, editor) == -1)
+            g_ptr_array_add (widget->priv->unloaded, editor);
 		ianjuta_file_open (IANJUTA_FILE (editor), editor->priv->file, NULL);
 	}
 }
@@ -54,18 +64,10 @@ vim_widget_add_document (VimWidget *widget, VimEditor *editor, GError **err)
 void
 vim_widget_add_document_complete (VimWidget *widget, VimEditor *editor)
 {
-	if (g_list_find (widget->priv->unloaded, editor))
-	{
-		if (g_list_length(widget->priv->unloaded) > 1)
-			widget->priv->unloaded = g_list_remove (widget->priv->unloaded, editor);
-		else
-		{
-			g_list_free(widget->priv->unloaded);
-			widget->priv->unloaded = NULL;
-		}
-	}
+    if (g_ptr_array_find (widget->priv->unloaded, editor) != -1)
+        g_ptr_array_remove (widget->priv->unloaded, editor);
 
-	widget->priv->documents = g_list_prepend (widget->priv->documents, editor);
+    g_ptr_array_add (widget->priv->documents, editor);
     editor->priv->loaded = TRUE;
 	vim_editor_update_variables (editor);
 	g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
@@ -98,37 +100,16 @@ vim_widget_remove_document_complete (VimWidget *widget, VimEditor *editor)
 
 	g_return_if_fail (editor != NULL);
 
-	/* If the last element from the list is being removed, delete the list */
 	/* Check for the phantom "Untitled" document */
-	if (editor == null_editor) 
-	{
-		if (g_list_length (widget->priv->documents) == 1)
-		{
-			g_list_free (widget->priv->documents);
-			widget->priv->documents = NULL;
-		}
-		else
-		{
-			widget->priv->documents = g_list_remove (widget->priv->documents, editor);
-		}
+    g_ptr_array_remove (widget->priv->documents, editor);
+    if (null_editor && widget->priv->documents->len == 1)
+        g_ptr_array_remove (widget->priv->documents, null_editor);
 
-	}
-	else
-	{
-		if((null_editor && g_list_length (widget->priv->documents) == 2) ||
-		  ((null_editor == NULL) && g_list_length (widget->priv->documents) == 1))
-		{
-			g_list_free (widget->priv->documents);
-			widget->priv->documents = NULL;
-		}
-		else
-		{
-			widget->priv->documents = g_list_remove (widget->priv->documents, editor);
-		}
-        editor->priv->loaded = FALSE;
-	}
 	/* Set this to null until vim signals the change */
-	widget->priv->current_editor = NULL;
+    if (widget->priv->documents->len == 0)
+        widget->priv->current_editor = NULL;
+    else
+        widget->priv->current_editor = g_ptr_array_index (widget->priv->documents, 0);
 
 	g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
 			"document-removed",
@@ -149,10 +130,11 @@ vim_widget_remove_document_complete (VimWidget *widget, VimEditor *editor)
 VimEditor*
 vim_widget_get_document_bufno (VimWidget *widget, const guint bufno, GError **err)
 {
-	GList* node = NULL;
-	for (node = widget->priv->documents; node != NULL; node = g_list_next (node))
+    int i, n;
+    n = widget->priv->documents->len;
+	for (i=0; i < n; i++)
 	{
-		VimEditor *editor = VIM_EDITOR(node->data);
+		VimEditor *editor = g_ptr_array_index (widget->priv->documents, i);
 		if (editor->priv->bufno == bufno)
 			return editor;
 	}
@@ -162,16 +144,18 @@ vim_widget_get_document_bufno (VimWidget *widget, const guint bufno, GError **er
 VimEditor*
 vim_widget_get_document_file (VimWidget *widget, GFile* file, GError **err)
 {
-	GList* node = NULL;
-	for (node = widget->priv->documents; node != NULL; node = g_list_next (node))
+    int i, n;
+    n = widget->priv->documents->len;
+	for (i=0; i < n; i++)
 	{
-		VimEditor *editor = VIM_EDITOR(node->data);
+		VimEditor *editor = g_ptr_array_index (widget->priv->documents, i);
 		if (g_file_equal(editor->priv->file, file))
 			return editor;
 	}
-	for (node = widget->priv->unloaded; node != NULL; node = g_list_next (node))
+    n = widget->priv->unloaded->len;
+	for (i=0; i < n; i++)
 	{
-		VimEditor *editor = VIM_EDITOR(node->data);
+		VimEditor *editor = g_ptr_array_index (widget->priv->unloaded, i);
 		if (g_file_equal(editor->priv->file, file))
 			return editor;
 	}
@@ -181,47 +165,19 @@ vim_widget_get_document_file (VimWidget *widget, GFile* file, GError **err)
 VimEditor*
 vim_widget_get_document_filename (VimWidget *widget, const gchar* filename, GError **err)
 {
-	GList* node = NULL;
 	GFile* file = g_file_new_for_path (filename);
-	for (node = widget->priv->documents; node != NULL; node = g_list_next (node))
-	{
-		VimEditor *editor = VIM_EDITOR(node->data);
-		if (g_file_equal(editor->priv->file, file))
-		{
-			g_object_unref (file);
-			return editor;
-		}
-	}
-	for (node = widget->priv->unloaded; node != NULL; node = g_list_next (node))
-	{
-		VimEditor *editor = VIM_EDITOR(node->data);
-		if (g_file_equal(editor->priv->file, file))
-			return editor;
-	}
-	return NULL;
+    VimEditor *editor = vim_widget_get_document_file (widget, file, err);
+    g_object_unref (file);
+    return editor;
 }
 
 VimEditor*
 vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err)
 {
-	GList* node = NULL;
 	GFile* file = g_file_new_for_uri (uri);
-	for (node = widget->priv->documents; node != NULL; node = g_list_next (node))
-	{
-		VimEditor *editor = VIM_EDITOR(node->data);
-		if (g_file_equal(editor->priv->file, file))
-		{
-			g_object_unref (file);
-			return editor;
-		}
-	}
-	for (node = widget->priv->unloaded; node != NULL; node = g_list_next (node))
-	{
-		VimEditor *editor = VIM_EDITOR(node->data);
-		if (g_file_equal(editor->priv->file, file))
-			return editor;
-	}
-	return NULL;
+    VimEditor *editor = vim_widget_get_document_file (widget, file, err);
+    g_object_unref (file);
+    return editor;
 }
 
 /* 
@@ -231,9 +187,7 @@ vim_widget_get_document_uri (VimWidget *widget, const gchar* uri, GError **err)
 static void
 vim_widget_plug_added_cb (GtkSocket *socket, VimWidget *widget)
 {
-    /*
     vim_comm_init(widget, NULL);
-    */
 }
 
 static void 
@@ -298,12 +252,12 @@ vim_widget_focus_cb (VimWidget *widget, GtkDirectionType dir)
 gboolean
 vim_widget_has_editor (VimWidget *widget, VimEditor *editor)
 {
-	GList* node = widget->priv->documents; 
-
-	if (g_list_find (node, editor))
-		return TRUE;
-	else
-		return FALSE;
+    int i,n;
+    n = widget->priv->documents->len;
+    for (i=0; i<n; i++) 
+        if (g_ptr_array_index (widget->priv->documents, i) == editor)
+            return TRUE;
+    return FALSE;
 }
 
 void
@@ -322,13 +276,13 @@ vim_widget_set_current_editor (VimWidget *widget, VimEditor *editor, GError **er
 
 vim_widget_close_all (VimWidget *widget)
 {
-	GList* list = widget->priv->documents;
+    int i,n;
+    n = widget->priv->documents->len;
 
-	while (list)
+    for (i = n; i > 0; i--)
 	{
-		VimEditor *editor = VIM_EDITOR (list->data);
+		VimEditor *editor = g_ptr_array_index(widget->priv->documents, i-1);
 		vim_widget_remove_document_complete (widget, editor);
-		list = widget->priv->documents;
 	}
 }
 
@@ -372,7 +326,12 @@ static GList*
 imaster_list_documents (IAnjutaEditorMaster *obj, GError **err)
 {
 	VimWidget* widget = VIM_WIDGET (obj);
-	return g_list_copy (widget->priv->documents);
+    GList *list = NULL;
+    int i,n;
+    n = widget->priv->documents->len;
+    for (i=0; i<n; i++) 
+        list = g_list_prepend (list, g_ptr_array_index (widget->priv->documents, i));
+	return list;
 }
 
 static void
@@ -446,6 +405,25 @@ vim_signal_buf_new_file_cb (DBusGProxy *proxy, const guint bufno,
 }
 
 void 
+vim_signal_buf_enter_cb (DBusGProxy *proxy, const guint bufno, 
+		const gchar* filename, VimWidget *widget)
+{
+	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
+	if (!editor)
+		return;
+	editor->priv->bufno = bufno;
+	if (widget->priv->current_editor != editor)
+    {
+	    widget->priv->current_editor = editor;
+        /* Set the current editor */
+        g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
+                "current-document-changed",
+                G_OBJECT(editor));
+    }
+}
+
+
+void 
 vim_signal_buf_read_cb (DBusGProxy *proxy, const guint bufno, 
 		const gchar* filename, VimWidget *widget)
 {
@@ -463,6 +441,7 @@ vim_signal_buf_read_cb (DBusGProxy *proxy, const guint bufno,
 		editor->priv->bufno = bufno;
 		editor->priv->file = file;
 		vim_widget_add_document_complete (widget, editor);
+        vim_signal_buf_enter_cb (proxy, bufno, NULL, widget);
 	}
 }
 
@@ -511,24 +490,6 @@ vim_signal_buf_file_post_cb (DBusGProxy *proxy, const guint bufno,
 		g_object_unref (editor->priv->file);
 		editor->priv->file = file;
 	}
-}
-
-void 
-vim_signal_buf_enter_cb (DBusGProxy *proxy, const guint bufno, 
-		const gchar* filename, VimWidget *widget)
-{
-	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
-	if (!editor)
-		return;
-	editor->priv->bufno = bufno;
-	if (widget->priv->current_editor != editor)
-    {
-	    widget->priv->current_editor = editor;
-        /* Set the current editor */
-        g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
-                "current-document-changed",
-                G_OBJECT(editor));
-    }
 }
 
 void 
@@ -631,7 +592,8 @@ static void
 vim_widget_instance_init (VimWidget *widget)
 {
 	widget->priv = g_new0 (VimWidgetPrivate, 1);
-	widget->priv->documents = NULL; /* NULL is the empty GList */
+	widget->priv->documents = g_ptr_array_new();
+	widget->priv->unloaded = g_ptr_array_new();
 }
 
 static void
@@ -642,13 +604,18 @@ vim_widget_dispose (GObject *object)
 	
 	priv->registered = FALSE;
 
-	g_list_foreach (priv->unloaded, (GFunc) g_object_unref, NULL);
-	if (priv->unloaded) g_list_free (priv->unloaded);
-	priv->unloaded = NULL;
+    if (priv->unloaded) {
+        g_ptr_array_foreach (priv->unloaded, (GFunc) g_object_unref, NULL);
+        g_ptr_array_free (priv->unloaded, TRUE);
+        priv->unloaded = NULL;
+    }
 
-	g_list_foreach (priv->documents, (GFunc) g_object_unref, NULL);
-	if (priv->documents) g_list_free (priv->documents);
-	priv->documents = NULL;
+    if (priv->documents) {
+        g_ptr_array_foreach (priv->documents, (GFunc) g_object_unref, NULL);
+        g_ptr_array_free (priv->documents, TRUE);
+        priv->documents = NULL;
+    }
+
 	priv->current_editor = NULL;
 
 	parent_class->dispose (object);
