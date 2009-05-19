@@ -82,18 +82,20 @@ vim_editor_new (AnjutaPlugin *plugin, GFile* file)
 
 	DEBUG_PRINT ("VimPlugin: Creating new editor ...");
 
-	widget = VIM_WIDGET (g_object_new(VIM_TYPE_WIDGET, NULL));
+	widget = VIM_WIDGET (g_object_new(VIM_TYPE_WIDGET, 
+                NULL));
+
+    if (!widget->priv->plugin) widget->priv->plugin = (VimPlugin*)plugin;
 
 	/* Make sure that editors aren't repeated */
-	if (widget &&
-		(editor = vim_widget_get_document_file (widget, file, NULL)))
+	if (editor = vim_widget_get_document_file (widget, file, NULL))
 	{
 		g_object_unref (widget);
 		return g_object_ref (editor);
 	}
 
 	editor = VIM_EDITOR (g_object_new(VIM_TYPE_EDITOR, NULL));
-	editor->priv->file = file;
+	editor->priv->file = g_file_dup(file);
 	vim_widget_add_document (widget, editor, NULL);
 	g_object_unref (widget);
 

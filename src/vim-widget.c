@@ -22,11 +22,13 @@
  */
 
 #include <libanjuta/anjuta-debug.h>
+#include <libanjuta/interfaces/ianjuta-document-manager.h>
 #include <libanjuta/interfaces/ianjuta-editor-master.h>
 #include <libanjuta/interfaces/ianjuta-editor-multiple.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <gtk/gtk.h>
 #include <gio/gio.h>
+#include "plugin.h"
 #include "vim-widget.h"
 #include "vim-editor.h"
 #include "vim-widget-priv.h"
@@ -37,6 +39,11 @@
 #define GVIMRC_FILE ANJUTA_DATA_DIR"/gvim/anjuta.gvimrc"
 
 static GObjectClass* parent_class;
+
+enum {
+    PROP_0,
+    PROP_VIM_PLUGIN
+};
 
 static gint
 g_ptr_array_find (GPtrArray *array, gpointer ptr)
@@ -64,15 +71,16 @@ vim_widget_add_document (VimWidget *widget, VimEditor *editor, GError **err)
 void
 vim_widget_add_document_complete (VimWidget *widget, VimEditor *editor)
 {
+    IAnjutaDocumentManager *docman;
     if (g_ptr_array_find (widget->priv->unloaded, editor) != -1)
         g_ptr_array_remove (widget->priv->unloaded, editor);
 
     g_ptr_array_add (widget->priv->documents, editor);
     editor->priv->loaded = TRUE;
 	vim_editor_update_variables (editor);
-	g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
-			"document-added",
-			G_OBJECT(editor));
+    docman = anjuta_shell_get_interface (ANJUTA_PLUGIN(widget->priv->plugin)->shell, 
+            IAnjutaDocumentManager, NULL);
+    ianjuta_document_manager_add_document (docman, IANJUTA_DOCUMENT(editor), NULL);
 }
 
 
@@ -93,6 +101,7 @@ vim_widget_remove_document (VimWidget *widget, VimEditor *editor, GError **err)
 void
 vim_widget_remove_document_complete (VimWidget *widget, VimEditor *editor)
 {
+    IAnjutaDocumentManager *docman;
 	GFile *file = g_file_new_for_path (UNTITLED_FILE);
 	/* The phantom "Untitled document" */
 	VimEditor *null_editor = vim_widget_get_document_file (widget, file, NULL);
@@ -111,9 +120,9 @@ vim_widget_remove_document_complete (VimWidget *widget, VimEditor *editor)
     else
         widget->priv->current_editor = g_ptr_array_index (widget->priv->documents, 0);
 
-	g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
-			"document-removed",
-			G_OBJECT(editor));
+    docman = anjuta_shell_get_interface (ANJUTA_PLUGIN(widget->priv->plugin)->shell, 
+            IAnjutaDocumentManager, NULL);
+    ianjuta_document_manager_remove_document (docman, IANJUTA_DOCUMENT(editor), TRUE, NULL);
 	gtk_object_destroy (GTK_OBJECT(editor));
 
 	/*
@@ -307,33 +316,6 @@ imaster_get_current_document (IAnjutaEditorMaster *obj, GError **err)
 	return IANJUTA_DOCUMENT(widget->priv->current_editor);
 }
 
-static gboolean
-imaster_has_document (IAnjutaEditorMaster *obj, IAnjutaDocument *document, GError **err)
-{
-	VimWidget* widget = VIM_WIDGET (obj);
-	VimEditor* editor = VIM_EDITOR (document);
-	return vim_widget_has_editor (widget, editor);
-}
-
-static gboolean
-imaster_is_registered (IAnjutaEditorMaster *obj, GError **err)
-{
-	VimWidget* widget = VIM_WIDGET (obj);
-	return widget->priv->registered;
-}
-
-static GList*
-imaster_list_documents (IAnjutaEditorMaster *obj, GError **err)
-{
-	VimWidget* widget = VIM_WIDGET (obj);
-    GList *list = NULL;
-    int i,n;
-    n = widget->priv->documents->len;
-    for (i=0; i<n; i++) 
-        list = g_list_prepend (list, g_ptr_array_index (widget->priv->documents, i));
-	return list;
-}
-
 static void
 imaster_remove_document (IAnjutaEditorMaster *obj, IAnjutaDocument *document, GError **err)
 {
@@ -354,40 +336,13 @@ imaster_set_current_document (IAnjutaEditorMaster *obj, IAnjutaDocument *documen
 	vim_widget_set_current_editor (widget, editor, err);
 }
 
-static void
-imaster_set_registered (IAnjutaEditorMaster *obj, gboolean state, GError **err)
-{
-	VimWidget* widget = VIM_WIDGET (obj);
-	widget->priv->registered = state;
-}
-
-static gint
-imaster_get_page (IAnjutaEditorMaster *obj, GError **err)
-{
-	VimWidget* widget = VIM_WIDGET (obj);
-	return widget->priv->page_no;
-}
-
-static void
-imaster_set_page (IAnjutaEditorMaster *obj, gint page, GError **err)
-{
-	VimWidget* widget = VIM_WIDGET (obj);
-	widget->priv->page_no = page;
-}
-
 void 
 imaster_iface_init (IAnjutaEditorMasterIface *iface)
 {
 	iface->add_document = imaster_add_document;
 	iface->get_current_document = imaster_get_current_document;
-	iface->has_document = imaster_has_document;
-	iface->is_registered = imaster_is_registered;
 	iface->remove_document = imaster_remove_document;
-	iface->list_documents = imaster_list_documents;
 	iface->set_current_document = imaster_set_current_document;
-	iface->set_registered = imaster_set_registered;
-	iface->get_page = imaster_get_page;
-	iface->set_page = imaster_set_page;
 }
 
 /* Signal Callbacks */
@@ -408,6 +363,7 @@ void
 vim_signal_buf_enter_cb (DBusGProxy *proxy, const guint bufno, 
 		const gchar* filename, VimWidget *widget)
 {
+    IAnjutaDocumentManager *docman;
 	VimEditor *editor = vim_widget_get_document_bufno (widget, bufno, NULL);
 	if (!editor)
 		return;
@@ -416,9 +372,9 @@ vim_signal_buf_enter_cb (DBusGProxy *proxy, const guint bufno,
     {
 	    widget->priv->current_editor = editor;
         /* Set the current editor */
-        g_signal_emit_by_name (IANJUTA_EDITOR_MASTER(widget),
-                "current-document-changed",
-                G_OBJECT(editor));
+        docman = anjuta_shell_get_interface (ANJUTA_PLUGIN(widget->priv->plugin)->shell, 
+                IAnjutaDocumentManager, NULL);
+        ianjuta_document_manager_set_current_document (docman, IANJUTA_DOCUMENT(editor), NULL);
     }
 }
 
@@ -540,7 +496,7 @@ void vim_signal_cursor_hold_cb (DBusGProxy *proxy, const guint bufno,
 }
 
 static GObject*
-vim_widget_constructor ( GType   type,
+vim_widget_constructor (GType   type,
 						guint   n_construct_properties,
 						GObjectConstructParam *construct_properties)
 {
@@ -637,19 +593,58 @@ vim_widget_finalize (GObject *object)
 	parent_class->finalize (object);
 }
 
+static void vim_widget_get_property (GObject *object, guint property_id, 
+        const GValue *value, GParamSpec *pspec)
+{
+    VimWidget *widget = VIM_WIDGET (object); 
+    switch (property_id) {
+        case PROP_VIM_PLUGIN:
+            widget->priv->plugin = ANJUTA_PLUGIN_GVIM (g_value_get_object (value));
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (widget, property_id, pspec);
+    }
+}
+
+static void vim_widget_set_property (GObject *object, guint property_id, 
+        GValue *value, GParamSpec *pspec)
+{
+    VimWidget *widget = VIM_WIDGET (object); 
+    switch (property_id) {
+        case PROP_VIM_PLUGIN:
+            g_value_set_object (value, widget->priv->plugin);
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (widget, property_id, pspec);
+    }
+}
+
 static void
 vim_widget_class_init (VimWidgetClass *klass)
 {
-    parent_class = G_OBJECT_CLASS (g_type_class_peek_parent (klass));
+    GParamSpec *pspec;
 	GObjectClass* object_class = G_OBJECT_CLASS (klass);
+    parent_class = G_OBJECT_CLASS (g_type_class_peek_parent (klass));
 
 	g_type_class_add_private (klass, sizeof (VimWidgetPrivate));
+    /*
+	object_class->get_property = vim_widget_get_property;
+	object_class->set_property = vim_widget_set_property;
+    */
 	object_class->constructor = vim_widget_constructor;
 	object_class->dispose = vim_widget_dispose;
 	object_class->finalize = vim_widget_finalize;
 
-	klass->widget = NULL; /* Singleton hasn't been initialized yet */
+    /*
+    pspec = g_param_spec_object (
+            "vim-plugin",
+            "Vim Plugin",
+            "Set Vim Plugin",
+            ANJUTA_TYPE_PLUGIN_GVIM,
+            G_PARAM_CONSTRUCT_ONLY|G_PARAM_READWRITE);
+    g_object_class_install_property (object_class, PROP_VIM_PLUGIN, pspec);
+    */
 
+	klass->widget = NULL; /* Singleton hasn't been initialized yet */
 }
 
 ANJUTA_TYPE_BEGIN (VimWidget, vim_widget, GTK_TYPE_FRAME);

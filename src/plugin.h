@@ -21,6 +21,7 @@
 #define _ANJUTA_GVIM_H_
 
 #include <libanjuta/anjuta-plugin.h>
+#include "vim-widget.h"
 
 extern GType anjuta_gvim_get_type ();
 #define ANJUTA_TYPE_PLUGIN_GVIM         (anjuta_gvim_get_type ())
@@ -41,7 +42,6 @@ struct _VimPlugin{
 
 struct _VimPluginClass{
 	AnjutaPluginClass parent_class;
-	VimEditor *editor;
 };
 
 #endif

@@ -500,18 +500,10 @@ imultiple_get_master (IAnjutaEditorMultiple *imultiple, GError **err)
 	return IANJUTA_EDITOR_MASTER (editor->priv->widget);
 }
 
-static gboolean
-imultiple_has_loaded (IAnjutaEditorMultiple *imultiple, GError **err)
-{
-	VimEditor* editor = VIM_EDITOR (imultiple);
-	return editor->priv->loaded;
-}
-
 void 
 imultiple_iface_init (IAnjutaEditorMultipleIface *iface)
 {
 	iface->get_master = imultiple_get_master;
-	iface->has_loaded = imultiple_has_loaded;
 }
 
 static void
@@ -931,7 +923,7 @@ iselection_select_to_brace (IAnjutaEditorSelection *iselection, GError **err)
 }
 
 static void
-iselection_set (IAnjutaEditorSelection *iselection, IAnjutaIterable* start,   IAnjutaIterable* end, GError **err)
+iselection_set (IAnjutaEditorSelection *iselection, IAnjutaIterable* start,   IAnjutaIterable* end, gboolean scroll, GError **err)
 {
 	VimEditor *editor = (VimEditor*) iselection;
 	VimEditorCell *start_ = VIM_CELL (start);
@@ -954,7 +946,6 @@ iselection_iface_init (IAnjutaEditorSelectionIface *iface)
 	iface->select_all = iselection_select_all;
 	iface->select_block = iselection_select_block;
 	iface->select_function = iselection_select_function;
-	iface->select_to_brace = iselection_select_to_brace;
 	iface->set = iselection_set;
 }
 

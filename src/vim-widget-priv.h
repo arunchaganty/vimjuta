@@ -26,6 +26,7 @@
 #define _VIM_WIDGET_PRIV_H_
 
 #include <glib-object.h>
+#include "plugin.h"
 #include "vim-widget.h"
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>
@@ -39,6 +40,7 @@ struct _VimWidgetPrivate
 	DBusGProxy* proxy;
 	gchar *servername;
 	GdkWindow *vim;
+    VimPlugin *plugin;
 
 	GPtrArray* documents; 
 	GPtrArray* unloaded; 
